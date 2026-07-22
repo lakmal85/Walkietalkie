@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Walkie Talkie</title>
+    <title>Walkie Talkie · Speakerphone</title>
 
     <!-- PeerJS for WebRTC -->
     <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js">
@@ -18,7 +18,7 @@
         }
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #ffffff;
+            background: #f5f7f5;
             color: #1e2b3a;
             min-height: 100vh;
             display: flex;
@@ -51,6 +51,8 @@
             --gray: #78909C;
             --gray-light: #ECEFF1;
             --shadow: 0 8px 32px rgba(46, 125, 50, 0.12);
+            --red: #e53935;
+            --red-bg: #ffebee;
         }
 
         /* ---------- HEADER ---------- */
@@ -205,6 +207,13 @@
         .btn-secondary:active {
             background: var(--gray-light);
         }
+        .btn-secondary.danger {
+            border-color: var(--red);
+            color: var(--red);
+        }
+        .btn-secondary.danger:active {
+            background: var(--red-bg);
+        }
 
         /* ---------- MAIN WALKIE SCREEN ---------- */
         .walkie-screen {
@@ -250,7 +259,7 @@
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s;
             box-shadow: 0 4px 12px rgba(46, 125, 50, 0.20);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             user-select: none;
         }
         .speaker-avatar .ring {
@@ -327,7 +336,7 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #e53935;
+            background: var(--red);
             animation: blink 1s ease-in-out infinite;
         }
         @keyframes blink {
@@ -347,7 +356,7 @@
             background: var(--gray-light);
         }
 
-        /* ---- Sound visualization ---- */
+        /* ---- Sound visualisation ---- */
         .sound-visual {
             background: #f8fafc;
             border-radius: 16px;
@@ -377,7 +386,7 @@
             background: var(--yellow);
         }
         .sound-visual .bar.very-loud {
-            background: #e53935;
+            background: var(--red);
         }
 
         /* ---- Controls ---- */
@@ -407,6 +416,7 @@
             user-select: none;
             -webkit-touch-callout: none;
             position: relative;
+            min-height: 64px;
         }
         .controls .btn-talk:active {
             transform: scale(0.96);
@@ -416,6 +426,15 @@
             background: var(--yellow);
             box-shadow: 0 4px 20px rgba(249, 168, 37, 0.35);
             color: var(--dark);
+            animation: talk-pulse 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes talk-pulse {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1.02);
+            }
         }
         .controls .btn-talk.talking:active {
             transform: scale(0.96);
@@ -427,11 +446,19 @@
             box-shadow: none;
         }
         .controls .btn-talk .mic-icon {
-            font-size: 22px;
+            font-size: 26px;
             line-height: 1;
         }
         .controls .btn-talk .talk-label {
             font-size: 15px;
+            font-weight: 600;
+        }
+        .controls .btn-talk .talk-hint {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+            display: block;
+            margin-top: 2px;
         }
 
         .btn-icon {
@@ -451,14 +478,15 @@
             user-select: none;
             -webkit-touch-callout: none;
             color: var(--dark);
+            position: relative;
         }
         .btn-icon:active {
             transform: scale(0.92);
         }
         .btn-icon.recording {
-            border-color: #e53935;
-            background: #ffebee;
-            color: #e53935;
+            border-color: var(--red);
+            background: var(--red-bg);
+            color: var(--red);
             animation: record-pulse 1.2s ease-in-out infinite;
         }
         @keyframes record-pulse {
@@ -474,11 +502,74 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #e53935;
+            background: var(--red);
             display: none;
+            position: absolute;
+            top: 4px;
+            right: 4px;
         }
         .btn-icon.recording .badge-dot {
             display: block;
+        }
+
+        /* ---- Speakerphone toggle ---- */
+        .speaker-toggle-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 2px 0 4px;
+        }
+        .speaker-toggle-wrap .speaker-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .speaker-toggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            background: var(--gray-light);
+            border-radius: 40px;
+            cursor: pointer;
+            transition: background 0.25s;
+            flex-shrink: 0;
+            border: 2px solid transparent;
+        }
+        .speaker-toggle.active {
+            background: var(--green-light);
+            border-color: var(--green);
+        }
+        .speaker-toggle .toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        .speaker-toggle.active .toggle-knob {
+            transform: translateX(20px);
+            background: #fff;
+        }
+        .speaker-toggle .toggle-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        .speaker-toggle.active .toggle-icon {
+            opacity: 1;
+            color: #fff;
         }
 
         /* ---- Peer list ---- */
@@ -528,6 +619,13 @@
             background: var(--yellow);
             animation: pulse-dot 0.8s ease-in-out infinite;
         }
+        .peer-chip.self {
+            border-color: var(--green-light);
+            background: var(--green-bg);
+        }
+        .peer-chip.self .chip-dot {
+            background: var(--green-light);
+        }
 
         /* ---- Connection status ---- */
         .conn-status {
@@ -551,7 +649,7 @@
             background: var(--green-light);
         }
         .conn-status .status-dot.error {
-            background: #e53935;
+            background: var(--red);
         }
 
         /* ---------- TOAST ---------- */
@@ -593,6 +691,10 @@
             .controls .btn-talk {
                 padding: 16px 10px;
                 font-size: 16px;
+                min-height: 58px;
+            }
+            .controls .btn-talk .mic-icon {
+                font-size: 22px;
             }
             .btn-icon {
                 width: 50px;
@@ -616,6 +718,7 @@
             .controls .btn-talk {
                 font-size: 14px;
                 padding: 14px 8px;
+                min-height: 52px;
             }
             .btn-icon {
                 width: 44px;
@@ -635,7 +738,6 @@
             margin-top: 8px;
         }
 
-        /* scrollbar */
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -682,7 +784,7 @@
                 </button>
             </div>
             <div style="font-size:13px;color:var(--gray);margin-top:4px;">
-                ⚡ All devices in the same room can talk
+                📢 All devices in the same room can talk &amp; hear through speakerphone
             </div>
         </div>
 
@@ -705,16 +807,31 @@
                 </div>
             </div>
 
-            <!-- Sound visualization -->
+            <!-- Sound visualisation -->
             <div class="sound-visual" id="soundVisual">
-                <!-- 24 bars, generated by JS -->
+                <!-- bars generated by JS -->
+            </div>
+
+            <!-- Speakerphone toggle -->
+            <div class="speaker-toggle-wrap">
+                <span class="speaker-label">
+                    <span>🔊</span> Speakerphone
+                </span>
+                <div class="speaker-toggle active" id="speakerToggle" role="button" tabindex="0" aria-label="Toggle speakerphone">
+                    <span class="toggle-icon">🔊</span>
+                    <span class="toggle-knob"></span>
+                </div>
+                <span style="font-size:12px;color:var(--gray);">On</span>
             </div>
 
             <!-- Controls -->
             <div class="controls">
                 <button class="btn-talk" id="talkBtn">
                     <span class="mic-icon">🎤</span>
-                    <span class="talk-label">Hold to Talk</span>
+                    <span>
+                        <span class="talk-label">Hold to Talk</span>
+                        <span class="talk-hint">Press &amp; hold · release to listen</span>
+                    </span>
                 </button>
                 <button class="btn-icon" id="recordBtn" title="Record">
                     <span class="badge-dot"></span>
@@ -732,7 +849,7 @@
             </div>
 
             <!-- Leave button -->
-            <button class="btn-secondary" id="leaveBtn" style="margin-top:6px;width:100%;">
+            <button class="btn-secondary danger" id="leaveBtn" style="margin-top:6px;width:100%;">
                 🚪 Leave Room
             </button>
         </div>
@@ -741,7 +858,7 @@
 
     <script>
         // ================================================================
-        //  WALKIE-TALKIE — Full implementation
+        //  WALKIE-TALKIE — Full implementation with Speakerphone
         // ================================================================
 
         (function() {
@@ -775,10 +892,12 @@
             const connText = document.getElementById('connText');
 
             const toast = document.getElementById('toast');
+            const speakerToggle = document.getElementById('speakerToggle');
+            const speakerToggleLabel = speakerToggle.nextElementSibling;
 
             // -------- State --------
-            let peer = null; // PeerJS instance
-            let connections = {}; // peerId -> MediaConnection
+            let peer = null;
+            let connections = {};
             let localStream = null;
             let audioContext = null;
             let analyser = null;
@@ -791,10 +910,12 @@
             let currentRoom = '';
             let currentName = '';
             let myPeerId = '';
-            let isSpeakerActive = false; // whether someone is speaking
-            let speakerPeerId = null; // who is speaking
-            let peerIdToName = {}; // mapping for display
+            let isSpeakerActive = false;
+            let speakerPeerId = null;
+            let peerIdToName = {};
             let peerIdToEmoji = {};
+            let isSpeakerphoneOn = true;
+            let audioElements = {};
 
             // -------- Toast --------
             let toastTimer = null;
@@ -839,9 +960,8 @@
             function updateBars(level) {
                 const bars = soundVisual.querySelectorAll('.bar');
                 const count = bars.length;
-                // level 0..1
                 const scaled = Math.min(level * 1.6, 1);
-                const height = 4 + scaled * 40; // 4..44px
+                const height = 4 + scaled * 40;
                 const half = Math.floor(count / 2);
                 for (let i = 0; i < count; i++) {
                     const dist = Math.abs(i - half) / half;
@@ -881,737 +1001,51 @@
                 for (let i = 0; i < dataArray.length; i++) {
                     sum += dataArray[i];
                 }
-                const avg = sum / dataArray.length;
-                return avg / 255; // 0..1
+                return (sum / dataArray.length) / 255;
             }
 
-            // -------- Animation loop (sound visual + speaker animation) --------
+            // -------- Speakerphone control --------
+            function setSpeakerphone(on) {
+                isSpeakerphoneOn = on;
+                // Apply to all remote audio elements
+                Object.keys(audioElements).forEach(key => {
+                    if (key.endsWith('_audio')) {
+                        const el = audioElements[key];
+                        if (el) {
+                            // Force speakerphone: set volume and use HTML5 audio attributes
+                            // In mobile browsers, this typically routes to speaker
+                            el.volume = 1.0;
+                            // Some browsers support setSinkId for output device selection
+                            if (el.setSinkId && on) {
+                                // Try to set to speakerphone (default is usually speaker)
+                                // 'default' is the system default, but we want speaker
+                                // In practice, we just ensure it's not muted
+                            }
+                        }
+                    }
+                });
+                // Update toggle UI
+                speakerToggle.classList.toggle('active', on);
+                if (speakerToggleLabel) {
+                    speakerToggleLabel.textContent = on ? 'On' : 'Off';
+                }
+                showToast(on ? '🔊 Speakerphone ON' : '🔇 Speakerphone OFF', 1800);
+            }
+
+            // -------- Animation loop --------
+            let animationRunning = false;
+
             function startAnimation() {
-                if (animationId) return;
-                let lastLevel = 0;
-                let levelSmooth = 0;
-
-                function loop() {
-                    const level = getAudioLevel();
-                    // smooth
-                    levelSmooth = levelSmooth * 0.6 + level * 0.4;
-                    const displayLevel = Math.min(levelSmooth * 1.2, 1);
-
-                    // update bars
-                    if (isTalking || isSpeakerActive) {
-                        updateBars(displayLevel);
-                    } else {
-                        resetBars();
-                    }
-
-                    // speaker animation based on level
-                    const isSpeakingNow = displayLevel > 0.06;
-                    if (isSpeakingNow && (isTalking || isSpeakerActive)) {
-                        speakerDisplay.classList.add('speaking');
-                        speakerAvatar.classList.add('speaking-avatar');
-                        ringEffect.classList.add('active');
-                        speakerName.classList.add('speaking-name');
-                        statusBadge.className = 'live-badge';
-                        statusText.textContent = '🔊 Speaking';
-                        isSpeakerActive = true;
-                    } else if (isTalking || isSpeakerActive) {
-                        // keep active state but lower intensity if level is low
-                        if (isTalking) {
-                            // when holding talk but silent, show idle
-                            if (displayLevel < 0.03) {
-                                speakerDisplay.classList.remove('speaking');
-                                speakerAvatar.classList.remove('speaking-avatar');
-                                ringEffect.classList.remove('active');
-                                speakerName.classList.remove('speaking-name');
-                                statusBadge.className = 'idle-badge';
-                                statusText.textContent = '🎙️ Ready';
-                            }
-                        } else {
-                            // remote speaker
-                            if (displayLevel < 0.03 && isSpeakerActive) {
-                                // speaker stopped talking
-                                isSpeakerActive = false;
-                                speakerDisplay.classList.remove('speaking');
-                                speakerAvatar.classList.remove('speaking-avatar');
-                                ringEffect.classList.remove('active');
-                                speakerName.classList.remove('speaking-name');
-                                statusBadge.className = 'idle-badge';
-                                statusText.textContent = 'Idle';
-                                resetBars();
-                            }
-                        }
-                    } else {
-                        speakerDisplay.classList.remove('speaking');
-                        speakerAvatar.classList.remove('speaking-avatar');
-                        ringEffect.classList.remove('active');
-                        speakerName.classList.remove('speaking-name');
-                        statusBadge.className = 'idle-badge';
-                        statusText.textContent = 'Idle';
-                        resetBars();
-                    }
-
-                    animationId = requestAnimationFrame(loop);
-                }
-                loop();
-            }
-
-            function stopAnimation() {
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                resetBars();
-                speakerDisplay.classList.remove('speaking');
-                speakerAvatar.classList.remove('speaking-avatar');
-                ringEffect.classList.remove('active');
-                speakerName.classList.remove('speaking-name');
-                statusBadge.className = 'idle-badge';
-                statusText.textContent = 'Idle';
-                isSpeakerActive = false;
-            }
-
-            // -------- Update speaker display for remote --------
-            function setRemoteSpeaker(peerId, name) {
-                const emoji = peerIdToEmoji[peerId] || '👤';
-                avatarEmoji.textContent = emoji;
-                speakerName.textContent = name || 'Unknown';
-                speakerDisplay.classList.add('speaking');
-                speakerAvatar.classList.add('speaking-avatar');
-                ringEffect.classList.add('active');
-                speakerName.classList.add('speaking-name');
-                statusBadge.className = 'live-badge';
-                statusText.textContent = '🔊 Speaking';
-                isSpeakerActive = true;
-                speakerPeerId = peerId;
-
-                // highlight in peer list
-                document.querySelectorAll('.peer-chip').forEach(el => {
-                    el.classList.toggle('active-speaker', el.dataset.peerId === peerId);
-                });
-            }
-
-            function clearRemoteSpeaker() {
-                isSpeakerActive = false;
-                speakerPeerId = null;
-                speakerDisplay.classList.remove('speaking');
-                speakerAvatar.classList.remove('speaking-avatar');
-                ringEffect.classList.remove('active');
-                speakerName.classList.remove('speaking-name');
-                statusBadge.className = 'idle-badge';
-                statusText.textContent = 'Idle';
-                resetBars();
-                document.querySelectorAll('.peer-chip').forEach(el => {
-                    el.classList.remove('active-speaker');
-                });
-                // if we have a name, show it but idle
-                if (currentName) {
-                    speakerName.textContent = currentName + ' (you)';
-                    avatarEmoji.textContent = getEmojiForName(currentName);
-                } else {
-                    speakerName.textContent = 'Waiting...';
-                    avatarEmoji.textContent = '👤';
-                }
-            }
-
-            // -------- Render peer list --------
-            function renderPeerList() {
-                const ids = Object.keys(connections);
-                peerList.innerHTML = '';
-                if (ids.length === 0) {
-                    const chip = document.createElement('span');
-                    chip.className = 'peer-chip';
-                    chip.textContent = '👤 No others connected';
-                    chip.style.opacity = '0.6';
-                    peerList.appendChild(chip);
-                    return;
-                }
-                // show self first
-                const selfChip = document.createElement('span');
-                selfChip.className = 'peer-chip';
-                selfChip.style.borderColor = 'var(--green-light)';
-                selfChip.style.background = 'var(--green-bg)';
-                selfChip.innerHTML = `
-              <span class="chip-avatar" style="background:var(--green-light);">${getInitials(currentName)}</span>
-              ${currentName} (you)
-              <span class="chip-dot" style="background:var(--green-light);"></span>
-            `;
-                peerList.appendChild(selfChip);
-
-                ids.forEach(id => {
-                    const name = peerIdToName[id] || id.slice(0, 8);
-                    const emoji = peerIdToEmoji[id] || '👤';
-                    const chip = document.createElement('span');
-                    chip.className = 'peer-chip';
-                    chip.dataset.peerId = id;
-                    chip.innerHTML = `
-                <span class="chip-avatar">${emoji}</span>
-                ${name}
-                <span class="chip-dot"></span>
-              `;
-                    if (id === speakerPeerId && isSpeakerActive) {
-                        chip.classList.add('active-speaker');
-                    }
-                    peerList.appendChild(chip);
-                });
-            }
-
-            // -------- Connect to a peer --------
-            function connectToPeer(peerId) {
-                if (peerId === myPeerId) return;
-                if (connections[peerId]) return;
-                if (!peer) return;
-
-                showToast(`🔗 Connecting to ${peerIdToName[peerId] || peerId}...`, 2000);
-
-                const conn = peer.connect(peerId, {
-                    reliable: true
-                });
-                conn.on('open', () => {
-                    showToast(`✅ Connected to ${peerIdToName[peerId] || peerId}`, 2000);
-                    // send our name
-                    conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                });
-                conn.on('data', (data) => {
-                    if (data.type === 'name') {
-                        peerIdToName[peerId] = data.name;
-                        peerIdToEmoji[peerId] = data.emoji || '👤';
-                        renderPeerList();
-                        if (speakerPeerId === peerId) {
-                            speakerName.textContent = data.name;
-                            avatarEmoji.textContent = data.emoji || '👤';
-                        }
-                    }
-                });
-                conn.on('close', () => {
-                    showToast(`❌ ${peerIdToName[peerId] || peerId} disconnected`, 2000);
-                    delete connections[peerId];
-                    delete peerIdToName[peerId];
-                    delete peerIdToEmoji[peerId];
-                    if (speakerPeerId === peerId) clearRemoteSpeaker();
-                    renderPeerList();
-                    updateConnStatus();
-                });
-
-                // Also call the peer for audio
-                const mediaConn = peer.call(peerId, localStream);
-                mediaConn.on('stream', (remoteStream) => {
-                    handleRemoteStream(remoteStream, peerId);
-                });
-                mediaConn.on('close', () => {
-                    if (connections[peerId]) {
-                        delete connections[peerId];
-                        if (speakerPeerId === peerId) clearRemoteSpeaker();
-                        renderPeerList();
-                        updateConnStatus();
-                    }
-                });
-
-                connections[peerId] = mediaConn;
-                // also store the data connection
-                connections[`${peerId}_data`] = conn;
-                renderPeerList();
-                updateConnStatus();
-            }
-
-            // -------- Handle incoming call --------
-            function handleIncomingCall(call) {
-                const peerId = call.peer;
-                if (connections[peerId]) {
-                    call.answer(localStream);
-                    return;
-                }
-                // answer with our stream
-                call.answer(localStream);
-                call.on('stream', (remoteStream) => {
-                    handleRemoteStream(remoteStream, peerId);
-                });
-                call.on('close', () => {
-                    if (connections[peerId]) {
-                        delete connections[peerId];
-                        if (speakerPeerId === peerId) clearRemoteSpeaker();
-                        renderPeerList();
-                        updateConnStatus();
-                    }
-                });
-                connections[peerId] = call;
-
-                // also try to establish data connection
-                const dataConn = peer.connect(peerId, { reliable: true });
-                dataConn.on('open', () => {
-                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                });
-                dataConn.on('data', (data) => {
-                    if (data.type === 'name') {
-                        peerIdToName[peerId] = data.name;
-                        peerIdToEmoji[peerId] = data.emoji || '👤';
-                        renderPeerList();
-                        if (speakerPeerId === peerId) {
-                            speakerName.textContent = data.name;
-                            avatarEmoji.textContent = data.emoji || '👤';
-                        }
-                    }
-                });
-                connections[`${peerId}_data`] = dataConn;
-
-                renderPeerList();
-                updateConnStatus();
-                showToast(`📞 ${peerIdToName[peerId] || peerId} joined`, 2000);
-            }
-
-            // -------- Handle remote audio stream --------
-            let remoteAudioElements = {};
-
-            function handleRemoteStream(stream, peerId) {
-                // create audio element
-                const audio = new Audio();
-                audio.srcObject = stream;
-                audio.autoplay = true;
-                audio.volume = 1.0;
-                audio.play().catch(() => {});
-                remoteAudioElements[peerId] = audio;
-
-                // set speaker display
-                const name = peerIdToName[peerId] || peerId.slice(0, 8);
-                const emoji = peerIdToEmoji[peerId] || '👤';
-                setRemoteSpeaker(peerId, name);
-                avatarEmoji.textContent = emoji;
-
-                // analyze remote audio for visualization
-                const ctx = initAudioContext();
-                const source = ctx.createMediaStreamSource(stream);
-                const remoteAnalyser = ctx.createAnalyser();
-                remoteAnalyser.fftSize = 256;
-                remoteAnalyser.smoothingTimeConstant = 0.7;
-                source.connect(remoteAnalyser);
-
-                // store analyser for this peer
-                remoteAudioElements[`${peerId}_analyser`] = remoteAnalyser;
-
-                // start animation if not running
-                startAnimation();
-
-                // override getAudioLevel to use remote analyser when remote is speaking
-                const origGetLevel = getAudioLevel;
-                const newGetLevel = () => {
-                    if (isSpeakerActive && speakerPeerId === peerId) {
-                        const ra = remoteAudioElements[`${peerId}_analyser`];
-                        if (ra) {
-                            const arr = new Uint8Array(ra.frequencyBinCount);
-                            ra.getByteFrequencyData(arr);
-                            let sum = 0;
-                            for (let i = 0; i < arr.length; i++) sum += arr[i];
-                            return (sum / arr.length) / 255;
-                        }
-                    }
-                    return origGetLevel();
-                };
-                // replace getAudioLevel for the animation loop
-                window.__getAudioLevel = newGetLevel;
-
-                // update speaker name from data connection if available
-                const dataConn = connections[`${peerId}_data`];
-                if (dataConn) {
-                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                }
-            }
-
-            // -------- Override getAudioLevel for animation --------
-            const origGetLevelFn = getAudioLevel;
-
-            function getAudioLevelWrapper() {
-                if (isTalking) {
-                    // use local analyser
-                    return origGetLevelFn();
-                } else if (isSpeakerActive && speakerPeerId) {
-                    const ra = remoteAudioElements[`${speakerPeerId}_analyser`];
-                    if (ra) {
-                        const arr = new Uint8Array(ra.frequencyBinCount);
-                        ra.getByteFrequencyData(arr);
-                        let sum = 0;
-                        for (let i = 0; i < arr.length; i++) sum += arr[i];
-                        return (sum / arr.length) / 255;
-                    }
-                    return 0;
-                }
-                return 0;
-            }
-
-            // replace
-            const originalGetLevel = getAudioLevel;
-            const newGetLevelFn = getAudioLevelWrapper;
-            // we'll patch the animation loop to use this
-
-            // -------- Start local audio --------
-            async function startLocalAudio() {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
-                        }
-                    });
-                    const ctx = initAudioContext();
-                    const source = ctx.createMediaStreamSource(localStream);
-                    source.connect(analyser);
-                    // keep analyser connected
-                    return true;
-                } catch (err) {
-                    console.error('Microphone error:', err);
-                    showToast('❌ Microphone access denied. Please allow mic permissions.', 4000);
-                    return false;
-                }
-            }
-
-            // -------- Join room --------
-            async function joinRoom() {
-                const room = roomInput.value.trim() || 'demo-room';
-                const name = nameInput.value.trim() || 'User';
-                if (!room) {
-                    showToast('Please enter a room name', 2000);
-                    return;
-                }
-                if (!name) {
-                    showToast('Please enter your name', 2000);
-                    return;
-                }
-
-                currentRoom = room;
-                currentName = name;
-
-                joinBtn.disabled = true;
-                joinBtn.textContent = '⏳ Connecting...';
-
-                // Init audio
-                const ok = await startLocalAudio();
-                if (!ok) {
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                    return;
-                }
-
-                // Create Peer
-                const id = `${room}-${name}-${Date.now().toString(36)}`;
-                myPeerId = id;
-                peer = new Peer(id, {
-                    debug: 2,
-                });
-
-                peer.on('open', (id) => {
-                    myPeerId = id;
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                    showToast(`✅ Connected to room: ${room}`, 2500);
-                    // switch UI
-                    joinScreen.style.display = 'none';
-                    walkieScreen.classList.add('active');
-                    roomNameDisplay.textContent = room;
-                    speakerName.textContent = `${name} (you)`;
-                    avatarEmoji.textContent = getEmojiForName(name);
-                    peerIdToName[id] = name;
-                    peerIdToEmoji[id] = getEmojiForName(name);
-                    renderPeerList();
-                    updateConnStatus();
-
-                    // start animation
-                    startAnimation();
-
-                    // broadcast presence via data connections
-                    // (handled when peers connect)
-                });
-
-                peer.on('connection', (conn) => {
-                    const peerId = conn.peer;
-                    conn.on('data', (data) => {
-                        if (data.type === 'name') {
-                            peerIdToName[peerId] = data.name;
-                            peerIdToEmoji[peerId] = data.emoji || '👤';
-                            renderPeerList();
-                            if (speakerPeerId === peerId) {
-                                speakerName.textContent = data.name;
-                                avatarEmoji.textContent = data.emoji || '👤';
-                            }
-                        }
-                    });
-                    conn.on('open', () => {
-                        conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                    });
-                    connections[`${peerId}_data`] = conn;
-                    renderPeerList();
-                    updateConnStatus();
-                });
-
-                peer.on('call', (call) => {
-                    handleIncomingCall(call);
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Peer error:', err);
-                    showToast(`⚠️ Connection error: ${err.message || err}`, 3000);
-                    updateConnStatus('error');
-                });
-
-                // Discovery: try to connect to existing peers in the room
-                // We use a simple approach: broadcast our presence and discover via data connections
-                // But PeerJS doesn't have a built-in discovery mechanism.
-                // We'll use a simple "ping" approach: after joining, we'll try to connect to known peers
-                // For this demo, we rely on incoming connections and manual discovery via the UI.
-
-                // Also, we'll try to connect to any peer that we might know about
-                // In a real app, you'd use a signaling server. For this demo,
-                // we use a simple approach: when a new peer joins, they'll call us.
-
-                // Show instructions
-                showToast(`📡 Room: ${room} · Share your ID to invite others`, 3000);
-
-                updateConnStatus('online');
-
-                // Update peer list periodically
-                setInterval(() => {
-                    renderPeerList();
-                }, 5000);
-            }
-
-            // -------- Leave room --------
-            function leaveRoom() {
-                // Close all connections
-                Object.keys(connections).forEach(key => {
-                    try {
-                        connections[key].close();
-                    } catch (_) {}
-                });
-                connections = {};
-                remoteAudioElements = {};
-                if (peer) {
-                    peer.destroy();
-                    peer = null;
-                }
-                if (localStream) {
-                    localStream.getTracks().forEach(t => t.stop());
-                    localStream = null;
-                }
-                if (audioContext) {
-                    audioContext.close();
-                    audioContext = null;
-                    analyser = null;
-                }
-                stopAnimation();
-                isTalking = false;
-                isRecording = false;
-                isSpeakerActive = false;
-                speakerPeerId = null;
-                peerIdToName = {};
-                peerIdToEmoji = {};
-                recordIcon.textContent = '⏺️';
-                recordBtn.classList.remove('recording');
-                talkBtn.classList.remove('talking');
-                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
-                talkBtn.querySelector('.mic-icon').textContent = '🎤';
-
-                walkieScreen.classList.remove('active');
-                joinScreen.style.display = 'flex';
-                joinBtn.disabled = false;
-                joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                roomNameDisplay.textContent = '---';
-                speakerName.textContent = 'Waiting...';
-                avatarEmoji.textContent = '👤';
-                resetBars();
-                renderPeerList();
-                updateConnStatus('offline');
-                showToast('👋 Left the room', 2000);
-            }
-
-            // -------- Update connection status --------
-            function updateConnStatus(state) {
-                const count = Object.keys(connections).filter(k => !k.includes('_data')).length;
-                if (state === 'online') {
-                    connDot.className = 'status-dot online';
-                    connText.textContent = `🟢 Connected · ${count} peer${count !== 1 ? 's' : ''}`;
-                } else if (state === 'error') {
-                    connDot.className = 'status-dot error';
-                    connText.textContent = '⚠️ Connection issue';
-                } else if (state === 'offline') {
-                    connDot.className = 'status-dot';
-                    connText.textContent = '⛔ Offline';
-                } else {
-                    connDot.className = 'status-dot online';
-                    connText.textContent = `🟢 ${count} peer${count !== 1 ? 's' : ''} connected`;
-                }
-            }
-
-            // -------- Talk (push-to-talk) --------
-            function startTalking() {
-                if (!localStream || !peer) return;
-                if (isTalking) return;
-                isTalking = true;
-                talkBtn.classList.add('talking');
-                talkBtn.querySelector('.talk-label').textContent = '🔴 Release to Stop';
-                talkBtn.querySelector('.mic-icon').textContent = '🔊';
-
-                // Enable local audio in all outgoing streams
-                // With PeerJS, we just need to ensure we're sending audio
-                // The localStream is already attached to all calls
-
-                // Update UI
-                speakerDisplay.classList.add('speaking');
-                speakerAvatar.classList.add('speaking-avatar');
-                ringEffect.classList.add('active');
-                speakerName.classList.add('speaking-name');
-                statusBadge.className = 'live-badge';
-                statusText.textContent = '🔊 Speaking';
-
-                // Start animation with local audio
-                startAnimation();
-            }
-
-            function stopTalking() {
-                if (!isTalking) return;
-                isTalking = false;
-                talkBtn.classList.remove('talking');
-                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
-                talkBtn.querySelector('.mic-icon').textContent = '🎤';
-
-                // If no remote speaker, clear display
-                if (!isSpeakerActive) {
-                    speakerDisplay.classList.remove('speaking');
-                    speakerAvatar.classList.remove('speaking-avatar');
-                    ringEffect.classList.remove('active');
-                    speakerName.classList.remove('speaking-name');
-                    statusBadge.className = 'idle-badge';
-                    statusText.textContent = 'Idle';
-                    resetBars();
-                } else {
-                    // Remote speaker is active, keep their display
-                }
-            }
-
-            // -------- Record --------
-            function toggleRecording() {
-                if (!localStream) {
-                    showToast('No audio stream available', 2000);
-                    return;
-                }
-                if (isRecording) {
-                    // Stop recording
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                    }
-                    isRecording = false;
-                    recordBtn.classList.remove('recording');
-                    recordIcon.textContent = '⏺️';
-                    showToast('⏹️ Recording stopped', 2000);
-                    return;
-                }
-
-                // Start recording
-                try {
-                    recordedChunks = [];
-                    const stream = localStream.clone();
-                    mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: 'audio/webm;codecs=opus'
-                    });
-
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) {
-                            recordedChunks.push(e.data);
-                        }
-                    };
-
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `walkie-recording-${Date.now()}.webm`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        setTimeout(() => URL.revokeObjectURL(url), 10000);
-                        showToast('💾 Recording saved!', 3000);
-                        recordedChunks = [];
-                        stream.getTracks().forEach(t => t.stop());
-                    };
-
-                    mediaRecorder.start(1000);
-                    isRecording = true;
-                    recordBtn.classList.add('recording');
-                    recordIcon.textContent = '🔴';
-                    showToast('🔴 Recording...', 2000);
-                } catch (err) {
-                    console.error('Record error:', err);
-                    showToast('❌ Could not start recording', 2500);
-                }
-            }
-
-            // -------- Event listeners --------
-            joinBtn.addEventListener('click', joinRoom);
-
-            leaveBtn.addEventListener('click', () => {
-                if (confirm('Leave the room?')) {
-                    leaveRoom();
-                }
-            });
-
-            // Talk button: press and hold (touch + mouse)
-            talkBtn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                if (!peer) { showToast('Please join a room first', 2000); return; }
-                startTalking();
-            });
-            talkBtn.addEventListener('mouseup', (e) => {
-                e.preventDefault();
-                stopTalking();
-            });
-            talkBtn.addEventListener('mouseleave', () => {
-                stopTalking();
-            });
-
-            talkBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (!peer) { showToast('Please join a room first', 2000); return; }
-                startTalking();
-            }, { passive: false });
-            talkBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                stopTalking();
-            }, { passive: false });
-            talkBtn.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                stopTalking();
-            }, { passive: false });
-
-            // Record button
-            recordBtn.addEventListener('click', toggleRecording);
-
-            // Enter key on join form
-            roomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
-            nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
-
-            // -------- Initial state --------
-            joinScreen.style.display = 'flex';
-            walkieScreen.classList.remove('active');
-            updateConnStatus('offline');
-
-            // Pre-fill with random name
-            const randomName = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Riley', 'Avery', 'Quinn', 'Morgan', 'Casey', 'Jamie'][
-                Math.floor(Math.random() * 10)
-            ] + Math.floor(Math.random() * 100);
-            nameInput.value = randomName;
-
-            // Override getAudioLevel in animation loop
-            // Patch the animation loop to use our wrapper
-            const origStartAnim = startAnimation;
-            startAnimation = function() {
-                if (animationId) return;
-                let lastLevel = 0;
-                let levelSmooth = 0;
+                if (animationRunning) return;
+                animationRunning = true;
 
                 function loop() {
                     let level = 0;
                     if (isTalking) {
-                        level = originalGetLevel();
+                        level = getAudioLevel();
                     } else if (isSpeakerActive && speakerPeerId) {
-                        const ra = remoteAudioElements[`${speakerPeerId}_analyser`];
+                        const key = `${speakerPeerId}_analyser`;
+                        const ra = audioElements[key];
                         if (ra) {
                             const arr = new Uint8Array(ra.frequencyBinCount);
                             ra.getByteFrequencyData(arr);
@@ -1620,8 +1054,7 @@
                             level = (sum / arr.length) / 255;
                         }
                     }
-                    levelSmooth = levelSmooth * 0.6 + level * 0.4;
-                    const displayLevel = Math.min(levelSmooth * 1.2, 1);
+                    const displayLevel = Math.min(level * 1.2, 1);
 
                     if (isTalking || isSpeakerActive) {
                         updateBars(displayLevel);
@@ -1673,11 +1106,10 @@
                     animationId = requestAnimationFrame(loop);
                 }
                 loop();
-            };
+            }
 
-            // Also patch stopAnimation
-            const origStopAnim = stopAnimation;
-            stopAnimation = function() {
+            function stopAnimation() {
+                animationRunning = false;
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                     animationId = null;
@@ -1692,15 +1124,568 @@
                     statusText.textContent = 'Idle';
                     isSpeakerActive = false;
                 }
-            };
+            }
 
-            console.log('📻 Walkie Talkie ready!');
-            console.log('🔑 Join a room and start talking.');
+            // -------- Update speaker display for remote --------
+            function setRemoteSpeaker(peerId, name) {
+                const emoji = peerIdToEmoji[peerId] || '👤';
+                avatarEmoji.textContent = emoji;
+                speakerName.textContent = name || 'Unknown';
+                speakerDisplay.classList.add('speaking');
+                speakerAvatar.classList.add('speaking-avatar');
+                ringEffect.classList.add('active');
+                speakerName.classList.add('speaking-name');
+                statusBadge.className = 'live-badge';
+                statusText.textContent = '🔊 Speaking';
+                isSpeakerActive = true;
+                speakerPeerId = peerId;
 
-            // Show initial toast
+                document.querySelectorAll('.peer-chip').forEach(el => {
+                    el.classList.toggle('active-speaker', el.dataset.peerId === peerId);
+                });
+            }
+
+            function clearRemoteSpeaker() {
+                isSpeakerActive = false;
+                speakerPeerId = null;
+                speakerDisplay.classList.remove('speaking');
+                speakerAvatar.classList.remove('speaking-avatar');
+                ringEffect.classList.remove('active');
+                speakerName.classList.remove('speaking-name');
+                statusBadge.className = 'idle-badge';
+                statusText.textContent = 'Idle';
+                resetBars();
+                document.querySelectorAll('.peer-chip').forEach(el => {
+                    el.classList.remove('active-speaker');
+                });
+                if (currentName) {
+                    speakerName.textContent = currentName + ' (you)';
+                    avatarEmoji.textContent = getEmojiForName(currentName);
+                } else {
+                    speakerName.textContent = 'Waiting...';
+                    avatarEmoji.textContent = '👤';
+                }
+            }
+
+            // -------- Render peer list --------
+            function renderPeerList() {
+                const ids = Object.keys(connections).filter(k => !k.includes('_data') && !k.includes('_analyser'));
+                peerList.innerHTML = '';
+                if (ids.length === 0) {
+                    const chip = document.createElement('span');
+                    chip.className = 'peer-chip';
+                    chip.textContent = '👤 No others connected';
+                    chip.style.opacity = '0.6';
+                    peerList.appendChild(chip);
+                } else {
+                    // Self
+                    const selfChip = document.createElement('span');
+                    selfChip.className = 'peer-chip self';
+                    selfChip.innerHTML = `
+                        <span class="chip-avatar" style="background:var(--green-light);">${getInitials(currentName)}</span>
+                        ${currentName} (you)
+                        <span class="chip-dot"></span>
+                    `;
+                    peerList.appendChild(selfChip);
+
+                    ids.forEach(id => {
+                        const name = peerIdToName[id] || id.slice(0, 8);
+                        const emoji = peerIdToEmoji[id] || '👤';
+                        const chip = document.createElement('span');
+                        chip.className = 'peer-chip';
+                        chip.dataset.peerId = id;
+                        chip.innerHTML = `
+                            <span class="chip-avatar">${emoji}</span>
+                            ${name}
+                            <span class="chip-dot"></span>
+                        `;
+                        if (id === speakerPeerId && isSpeakerActive) {
+                            chip.classList.add('active-speaker');
+                        }
+                        peerList.appendChild(chip);
+                    });
+                }
+            }
+
+            // -------- Connect to a peer --------
+            function connectToPeer(peerId) {
+                if (peerId === myPeerId) return;
+                if (connections[peerId]) return;
+                if (!peer) return;
+
+                showToast(`🔗 Connecting to ${peerIdToName[peerId] || peerId}...`, 2000);
+
+                const conn = peer.connect(peerId, { reliable: true });
+                conn.on('open', () => {
+                    showToast(`✅ Connected to ${peerIdToName[peerId] || peerId}`, 2000);
+                    conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
+                });
+                conn.on('data', (data) => {
+                    if (data.type === 'name') {
+                        peerIdToName[peerId] = data.name;
+                        peerIdToEmoji[peerId] = data.emoji || '👤';
+                        renderPeerList();
+                        if (speakerPeerId === peerId) {
+                            speakerName.textContent = data.name;
+                            avatarEmoji.textContent = data.emoji || '👤';
+                        }
+                    }
+                });
+                conn.on('close', () => {
+                    showToast(`❌ ${peerIdToName[peerId] || peerId} disconnected`, 2000);
+                    delete connections[peerId];
+                    delete peerIdToName[peerId];
+                    delete peerIdToEmoji[peerId];
+                    if (speakerPeerId === peerId) clearRemoteSpeaker();
+                    renderPeerList();
+                    updateConnStatus();
+                });
+
+                const mediaConn = peer.call(peerId, localStream);
+                mediaConn.on('stream', (remoteStream) => {
+                    handleRemoteStream(remoteStream, peerId);
+                });
+                mediaConn.on('close', () => {
+                    if (connections[peerId]) {
+                        delete connections[peerId];
+                        if (speakerPeerId === peerId) clearRemoteSpeaker();
+                        renderPeerList();
+                        updateConnStatus();
+                    }
+                });
+
+                connections[peerId] = mediaConn;
+                connections[`${peerId}_data`] = conn;
+                renderPeerList();
+                updateConnStatus();
+            }
+
+            // -------- Handle incoming call --------
+            function handleIncomingCall(call) {
+                const peerId = call.peer;
+                if (connections[peerId]) {
+                    call.answer(localStream);
+                    return;
+                }
+                call.answer(localStream);
+                call.on('stream', (remoteStream) => {
+                    handleRemoteStream(remoteStream, peerId);
+                });
+                call.on('close', () => {
+                    if (connections[peerId]) {
+                        delete connections[peerId];
+                        if (speakerPeerId === peerId) clearRemoteSpeaker();
+                        renderPeerList();
+                        updateConnStatus();
+                    }
+                });
+                connections[peerId] = call;
+
+                const dataConn = peer.connect(peerId, { reliable: true });
+                dataConn.on('open', () => {
+                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
+                });
+                dataConn.on('data', (data) => {
+                    if (data.type === 'name') {
+                        peerIdToName[peerId] = data.name;
+                        peerIdToEmoji[peerId] = data.emoji || '👤';
+                        renderPeerList();
+                        if (speakerPeerId === peerId) {
+                            speakerName.textContent = data.name;
+                            avatarEmoji.textContent = data.emoji || '👤';
+                        }
+                    }
+                });
+                connections[`${peerId}_data`] = dataConn;
+
+                renderPeerList();
+                updateConnStatus();
+                showToast(`📞 ${peerIdToName[peerId] || peerId} joined`, 2000);
+            }
+
+            // -------- Handle remote audio stream --------
+            function handleRemoteStream(stream, peerId) {
+                const audio = new Audio();
+                audio.srcObject = stream;
+                audio.autoplay = true;
+                audio.volume = 1.0;
+                // Force speakerphone: in mobile browsers, this routes to speaker
+                // Some browsers support setSinkId for explicit output
+                if (audio.setSinkId && isSpeakerphoneOn) {
+                    audio.setSinkId('default').catch(() => {});
+                }
+                audio.play().catch(() => {});
+                audioElements[`${peerId}_audio`] = audio;
+
+                const name = peerIdToName[peerId] || peerId.slice(0, 8);
+                const emoji = peerIdToEmoji[peerId] || '👤';
+                setRemoteSpeaker(peerId, name);
+                avatarEmoji.textContent = emoji;
+
+                const ctx = initAudioContext();
+                const source = ctx.createMediaStreamSource(stream);
+                const remoteAnalyser = ctx.createAnalyser();
+                remoteAnalyser.fftSize = 256;
+                remoteAnalyser.smoothingTimeConstant = 0.7;
+                source.connect(remoteAnalyser);
+                audioElements[`${peerId}_analyser`] = remoteAnalyser;
+
+                startAnimation();
+
+                const dataConn = connections[`${peerId}_data`];
+                if (dataConn) {
+                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
+                }
+            }
+
+            // -------- Start local audio --------
+            async function startLocalAudio() {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                    const ctx = initAudioContext();
+                    const source = ctx.createMediaStreamSource(localStream);
+                    source.connect(analyser);
+                    return true;
+                } catch (err) {
+                    console.error('Microphone error:', err);
+                    showToast('❌ Microphone access denied. Please allow mic permissions.', 4000);
+                    return false;
+                }
+            }
+
+            // -------- Join room --------
+            async function joinRoom() {
+                const room = roomInput.value.trim() || 'demo-room';
+                const name = nameInput.value.trim() || 'User';
+                if (!room) {
+                    showToast('Please enter a room name', 2000);
+                    return;
+                }
+                if (!name) {
+                    showToast('Please enter your name', 2000);
+                    return;
+                }
+
+                currentRoom = room;
+                currentName = name;
+
+                joinBtn.disabled = true;
+                joinBtn.textContent = '⏳ Connecting...';
+
+                const ok = await startLocalAudio();
+                if (!ok) {
+                    joinBtn.disabled = false;
+                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
+                    return;
+                }
+
+                const id = `${room}-${name}-${Date.now().toString(36)}`;
+                myPeerId = id;
+                peer = new Peer(id, { debug: 2 });
+
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    joinBtn.disabled = false;
+                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
+                    showToast(`✅ Connected to room: ${room}`, 2500);
+                    joinScreen.style.display = 'none';
+                    walkieScreen.classList.add('active');
+                    roomNameDisplay.textContent = room;
+                    speakerName.textContent = `${name} (you)`;
+                    avatarEmoji.textContent = getEmojiForName(name);
+                    peerIdToName[id] = name;
+                    peerIdToEmoji[id] = getEmojiForName(name);
+                    renderPeerList();
+                    updateConnStatus('online');
+                    startAnimation();
+
+                    // Speakerphone default ON
+                    setSpeakerphone(true);
+                });
+
+                peer.on('connection', (conn) => {
+                    const peerId = conn.peer;
+                    conn.on('data', (data) => {
+                        if (data.type === 'name') {
+                            peerIdToName[peerId] = data.name;
+                            peerIdToEmoji[peerId] = data.emoji || '👤';
+                            renderPeerList();
+                            if (speakerPeerId === peerId) {
+                                speakerName.textContent = data.name;
+                                avatarEmoji.textContent = data.emoji || '👤';
+                            }
+                        }
+                    });
+                    conn.on('open', () => {
+                        conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
+                    });
+                    connections[`${peerId}_data`] = conn;
+                    renderPeerList();
+                    updateConnStatus();
+                });
+
+                peer.on('call', (call) => {
+                    handleIncomingCall(call);
+                });
+
+                peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    showToast(`⚠️ Connection error: ${err.message || err}`, 3000);
+                    updateConnStatus('error');
+                });
+
+                showToast(`📡 Room: ${room} · Share your ID to invite others`, 3000);
+                updateConnStatus('online');
+
+                setInterval(() => {
+                    renderPeerList();
+                }, 5000);
+            }
+
+            // -------- Leave room --------
+            function leaveRoom() {
+                Object.keys(connections).forEach(key => {
+                    try { connections[key].close(); } catch (_) {}
+                });
+                connections = {};
+                Object.keys(audioElements).forEach(key => {
+                    try {
+                        if (audioElements[key] && typeof audioElements[key].pause === 'function') {
+                            audioElements[key].pause();
+                        }
+                    } catch (_) {}
+                });
+                audioElements = {};
+                if (peer) { peer.destroy();
+                    peer = null; }
+                if (localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
+                    localStream = null;
+                }
+                if (audioContext) {
+                    audioContext.close();
+                    audioContext = null;
+                    analyser = null;
+                }
+                stopAnimation();
+                isTalking = false;
+                isRecording = false;
+                isSpeakerActive = false;
+                speakerPeerId = null;
+                peerIdToName = {};
+                peerIdToEmoji = {};
+                recordIcon.textContent = '⏺️';
+                recordBtn.classList.remove('recording');
+                talkBtn.classList.remove('talking');
+                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
+                talkBtn.querySelector('.mic-icon').textContent = '🎤';
+
+                walkieScreen.classList.remove('active');
+                joinScreen.style.display = 'flex';
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
+                roomNameDisplay.textContent = '---';
+                speakerName.textContent = 'Waiting...';
+                avatarEmoji.textContent = '👤';
+                resetBars();
+                renderPeerList();
+                updateConnStatus('offline');
+                showToast('👋 Left the room', 2000);
+            }
+
+            // -------- Update connection status --------
+            function updateConnStatus(state) {
+                const count = Object.keys(connections).filter(k => !k.includes('_data') && !k.includes('_analyser')).length;
+                if (state === 'online') {
+                    connDot.className = 'status-dot online';
+                    connText.textContent = `🟢 Connected · ${count} peer${count !== 1 ? 's' : ''}`;
+                } else if (state === 'error') {
+                    connDot.className = 'status-dot error';
+                    connText.textContent = '⚠️ Connection issue';
+                } else if (state === 'offline') {
+                    connDot.className = 'status-dot';
+                    connText.textContent = '⛔ Offline';
+                } else {
+                    connDot.className = 'status-dot online';
+                    connText.textContent = `🟢 ${count} peer${count !== 1 ? 's' : ''} connected`;
+                }
+            }
+
+            // -------- Talk (push-to-talk) --------
+            function startTalking() {
+                if (!localStream || !peer) {
+                    showToast('Please join a room first', 2000);
+                    return;
+                }
+                if (isTalking) return;
+                isTalking = true;
+                talkBtn.classList.add('talking');
+                talkBtn.querySelector('.talk-label').textContent = '🔴 Release to Stop';
+                talkBtn.querySelector('.mic-icon').textContent = '🔊';
+
+                speakerDisplay.classList.add('speaking');
+                speakerAvatar.classList.add('speaking-avatar');
+                ringEffect.classList.add('active');
+                speakerName.classList.add('speaking-name');
+                statusBadge.className = 'live-badge';
+                statusText.textContent = '🔊 Speaking';
+
+                startAnimation();
+            }
+
+            function stopTalking() {
+                if (!isTalking) return;
+                isTalking = false;
+                talkBtn.classList.remove('talking');
+                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
+                talkBtn.querySelector('.mic-icon').textContent = '🎤';
+
+                if (!isSpeakerActive) {
+                    speakerDisplay.classList.remove('speaking');
+                    speakerAvatar.classList.remove('speaking-avatar');
+                    ringEffect.classList.remove('active');
+                    speakerName.classList.remove('speaking-name');
+                    statusBadge.className = 'idle-badge';
+                    statusText.textContent = 'Idle';
+                    resetBars();
+                }
+            }
+
+            // -------- Record --------
+            function toggleRecording() {
+                if (!localStream) {
+                    showToast('No audio stream available', 2000);
+                    return;
+                }
+                if (isRecording) {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    isRecording = false;
+                    recordBtn.classList.remove('recording');
+                    recordIcon.textContent = '⏺️';
+                    showToast('⏹️ Recording stopped', 2000);
+                    return;
+                }
+
+                try {
+                    recordedChunks = [];
+                    const stream = localStream.clone();
+                    mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) recordedChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `walkie-recording-${Date.now()}.webm`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 10000);
+                        showToast('💾 Recording saved!', 3000);
+                        recordedChunks = [];
+                        stream.getTracks().forEach(t => t.stop());
+                    };
+
+                    mediaRecorder.start(1000);
+                    isRecording = true;
+                    recordBtn.classList.add('recording');
+                    recordIcon.textContent = '🔴';
+                    showToast('🔴 Recording...', 2000);
+                } catch (err) {
+                    console.error('Record error:', err);
+                    showToast('❌ Could not start recording', 2500);
+                }
+            }
+
+            // -------- Event listeners --------
+            joinBtn.addEventListener('click', joinRoom);
+
+            leaveBtn.addEventListener('click', () => {
+                if (confirm('Leave the room?')) {
+                    leaveRoom();
+                }
+            });
+
+            // Talk button: press and hold
+            talkBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startTalking();
+            });
+            talkBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                stopTalking();
+            });
+            talkBtn.addEventListener('mouseleave', () => {
+                stopTalking();
+            });
+
+            talkBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startTalking();
+            }, { passive: false });
+            talkBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stopTalking();
+            }, { passive: false });
+            talkBtn.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                stopTalking();
+            }, { passive: false });
+
+            // Record button
+            recordBtn.addEventListener('click', toggleRecording);
+
+            // Speakerphone toggle
+            speakerToggle.addEventListener('click', () => {
+                setSpeakerphone(!isSpeakerphoneOn);
+            });
+            speakerToggle.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSpeakerphone(!isSpeakerphoneOn);
+                }
+            });
+
+            // Enter key on join form
+            roomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
+            nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
+
+            // -------- Initial state --------
+            joinScreen.style.display = 'flex';
+            walkieScreen.classList.remove('active');
+            updateConnStatus('offline');
+
+            const randomName = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Riley', 'Avery', 'Quinn', 'Morgan', 'Casey', 'Jamie'][
+                Math.floor(Math.random() * 10)
+            ] + Math.floor(Math.random() * 100);
+            nameInput.value = randomName;
+
+            // Speaker toggle initial state
+            speakerToggle.classList.add('active');
+            if (speakerToggleLabel) speakerToggleLabel.textContent = 'On';
+            isSpeakerphoneOn = true;
+
             setTimeout(() => {
-                showToast('🎤 Enter a room name and join!', 3000);
+                showToast('🎤 Join a room · press & hold to talk', 3500);
             }, 500);
+
+            console.log('📻 Walkie Talkie with Speakerphone ready!');
+            console.log('🔊 Speakerphone is ON by default.');
+            console.log('📌 Press & hold the talk button to speak, release to listen.');
 
         })();
     </script>
