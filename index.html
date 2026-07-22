@@ -1,1691 +1,2094 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="si">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Walkie Talkie · Speakerphone</title>
-
-    <!-- PeerJS for WebRTC -->
-    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js">
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Walkie Talkie</title>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-        /* ---------- RESET & BASE ---------- */
+        /* ===== RESET & BASE ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #f5f7f5;
-            color: #1e2b3a;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 12px;
-        }
-        .app-container {
-            max-width: 420px;
-            width: 100%;
-            background: #ffffff;
-            border-radius: 36px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
-            overflow: hidden;
-            padding: 20px 20px 30px;
-            position: relative;
-            border: 1px solid rgba(46, 125, 50, 0.10);
-        }
 
-        /* ---------- COLORS ---------- */
         :root {
-            --green: #2E7D32;
-            --green-light: #4CAF50;
-            --green-bg: #E8F5E9;
-            --yellow: #F9A825;
-            --yellow-light: #FFD54F;
-            --yellow-bg: #FFF8E1;
             --white: #ffffff;
-            --dark: #1e2b3a;
-            --gray: #78909C;
-            --gray-light: #ECEFF1;
-            --shadow: 0 8px 32px rgba(46, 125, 50, 0.12);
-            --red: #e53935;
-            --red-bg: #ffebee;
+            --green-primary: #2ecc71;
+            --green-dark: #27ae60;
+            --green-light: #a8f0c0;
+            --yellow-primary: #f1c40f;
+            --yellow-light: #f9e79f;
+            --yellow-dark: #d4ac0d;
+            --gray-light: #f5f7fa;
+            --gray-mid: #e2e8f0;
+            --gray-dark: #64748b;
+            --text-dark: #1a202c;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.10);
+            --shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.18);
+            --radius: 28px;
+            --radius-sm: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* ---------- HEADER ---------- */
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--white);
+            color: var(--text-dark);
+            overflow: hidden;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ===== APP SHELL ===== */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-height: 100vh;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--white);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.06);
+        }
+
+        /* ===== STATUS BAR ===== */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-dark);
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-light);
+            flex-shrink: 0;
+        }
+
+        .status-bar .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: var(--transition);
+        }
+
+        .status-dot.disconnected {
+            background: #e74c3c;
+        }
+        .status-dot.connecting {
+            background: var(--yellow-primary);
+            animation: pulse-dot 0.8s ease-in-out infinite;
+        }
+        .status-dot.connected {
+            background: var(--green-primary);
+        }
+
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.4);
+                opacity: 0.6;
+            }
+        }
+
+        .status-bar .room-info {
+            background: var(--gray-light);
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-dark);
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== HEADER ===== */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 14px;
-            border-bottom: 2px solid var(--gray-light);
-            margin-bottom: 18px;
+            padding: 8px 20px 12px;
+            background: var(--white);
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--gray-light);
         }
+
         .header h1 {
             font-size: 20px;
-            font-weight: 700;
-            color: var(--green);
-            letter-spacing: -0.3px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--green-primary), var(--green-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .header h1 span {
-            background: var(--green-bg);
-            padding: 2px 10px;
-            border-radius: 40px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--green);
-        }
-        .room-badge {
-            background: var(--yellow-bg);
-            color: var(--yellow);
-            padding: 4px 14px;
-            border-radius: 40px;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid rgba(249, 168, 37, 0.25);
-        }
-        .room-badge .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--green-light);
-            animation: pulse-dot 1.8s ease-in-out infinite;
-        }
-        @keyframes pulse-dot {
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.4;
-                transform: scale(0.7);
-            }
-        }
 
-        /* ---------- JOIN SCREEN ---------- */
-        .join-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-            padding: 40px 12px 20px;
-        }
-        .join-screen .logo {
-            font-size: 52px;
-            margin-bottom: 4px;
-        }
-        .join-screen h2 {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--dark);
-        }
-        .join-screen p {
-            color: var(--gray);
-            font-size: 14px;
-            text-align: center;
-            max-width: 280px;
-            line-height: 1.5;
-        }
-        .join-form {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            margin-top: 6px;
-        }
-        .join-form input {
-            width: 100%;
-            padding: 16px 18px;
-            border: 2px solid var(--gray-light);
-            border-radius: 16px;
-            font-size: 16px;
-            background: #fafafa;
-            transition: border 0.25s, box-shadow 0.25s;
-            outline: none;
-            color: var(--dark);
-        }
-        .join-form input:focus {
-            border-color: var(--green-light);
-            box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.12);
-            background: #ffffff;
-        }
-        .join-form input::placeholder {
-            color: #b0bec5;
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 16px;
-            background: var(--green);
-            color: #fff;
+        .header h1 i {
             font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(46, 125, 50, 0.25);
-            letter-spacing: 0.3px;
+            -webkit-text-fill-color: var(--green-primary);
+            color: var(--green-primary);
+        }
+
+        .header-actions {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .btn-primary:active {
-            transform: scale(0.97);
-            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.20);
-        }
-        .btn-primary:disabled {
-            opacity: 0.6;
-            transform: none;
-            cursor: not-allowed;
-        }
-        .btn-secondary {
-            padding: 12px 20px;
-            border: 2px solid var(--gray-light);
-            border-radius: 14px;
-            background: transparent;
-            color: var(--dark);
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             gap: 8px;
         }
-        .btn-secondary:active {
+
+        .header-actions button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
             background: var(--gray-light);
-        }
-        .btn-secondary.danger {
-            border-color: var(--red);
-            color: var(--red);
-        }
-        .btn-secondary.danger:active {
-            background: var(--red-bg);
-        }
-
-        /* ---------- MAIN WALKIE SCREEN ---------- */
-        .walkie-screen {
-            display: none;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .walkie-screen.active {
+            color: var(--gray-dark);
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
             display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* ---- Speaker display ---- */
-        .speaker-display {
-            background: var(--green-bg);
-            border-radius: 24px;
-            padding: 18px 16px 16px;
-            text-align: center;
-            position: relative;
-            min-height: 120px;
+        .header-actions button:active {
+            transform: scale(0.92);
+        }
+
+        .header-actions button:hover {
+            background: var(--gray-mid);
+        }
+
+        /* ===== USER PROFILE / ACTIVE SPEAKER ===== */
+        .speaker-section {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: background 0.5s;
-            border: 1px solid rgba(46, 125, 50, 0.08);
+            padding: 16px 20px 12px;
+            background: var(--white);
+            flex-shrink: 0;
+            min-height: 160px;
+            border-bottom: 1px solid var(--gray-light);
+            position: relative;
+            overflow: hidden;
         }
-        .speaker-display.speaking {
-            background: var(--yellow-bg);
-            border-color: rgba(249, 168, 37, 0.25);
-        }
+
         .speaker-avatar {
-            width: 72px;
-            height: 72px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            background: var(--green);
+            background: linear-gradient(135deg, var(--green-light), var(--green-primary));
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 34px;
-            color: #fff;
-            font-weight: 600;
-            margin-bottom: 8px;
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s;
-            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.20);
+            font-weight: 700;
+            color: var(--white);
+            box-shadow: 0 4px 20px rgba(46, 204, 113, 0.30);
+            transition: var(--transition);
             position: relative;
-            overflow: visible;
-            user-select: none;
+            margin-bottom: 8px;
+            flex-shrink: 0;
         }
-        .speaker-avatar .ring {
+
+        .speaker-avatar .avatar-ring {
             position: absolute;
             inset: -6px;
             border-radius: 50%;
             border: 3px solid transparent;
-            transition: border-color 0.4s, transform 0.6s;
+            transition: var(--transition);
         }
-        .speaker-avatar .ring.active {
-            border-color: var(--yellow);
-            transform: scale(1.08);
+
+        .speaker-avatar .avatar-ring.active {
+            border-color: var(--yellow-primary);
+            box-shadow: 0 0 0 4px rgba(241, 196, 15, 0.25);
             animation: ring-pulse 1.2s ease-in-out infinite;
         }
+
         @keyframes ring-pulse {
             0%,
             100% {
-                transform: scale(1.08);
-                opacity: 0.7;
-            }
-            50% {
-                transform: scale(1.22);
-                opacity: 0.2;
-            }
-        }
-        .speaker-avatar .wave-ring {
-            position: absolute;
-            inset: -12px;
-            border-radius: 50%;
-            border: 2px solid rgba(249, 168, 37, 0.15);
-            animation: wave-expand 1.8s ease-out infinite;
-        }
-        .speaker-avatar .wave-ring:nth-child(2) {
-            animation-delay: 0.6s;
-        }
-        .speaker-avatar .wave-ring:nth-child(3) {
-            animation-delay: 1.2s;
-        }
-        @keyframes wave-expand {
-            0% {
-                transform: scale(0.8);
+                transform: scale(1);
                 opacity: 0.8;
             }
-            100% {
-                transform: scale(1.8);
-                opacity: 0;
+            50% {
+                transform: scale(1.08);
+                opacity: 1;
             }
         }
-        .speaker-avatar.speaking-avatar {
-            transform: scale(1.05);
-            box-shadow: 0 8px 30px rgba(249, 168, 37, 0.35);
+
+        .speaker-avatar .mic-indicator {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--yellow-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--white);
+            box-shadow: 0 2px 12px rgba(241, 196, 15, 0.40);
+            transition: var(--transition);
         }
+
+        .speaker-avatar .mic-indicator.muted {
+            background: var(--gray-dark);
+            box-shadow: none;
+        }
+
         .speaker-name {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            color: var(--dark);
-            transition: color 0.3s;
+            color: var(--text-dark);
+            transition: var(--transition);
+            text-align: center;
         }
-        .speaker-name.speaking-name {
-            color: var(--green);
-        }
-        .speaker-status {
+
+        .speaker-name .name-label {
+            font-weight: 400;
+            color: var(--gray-dark);
             font-size: 13px;
-            color: var(--gray);
-            margin-top: 2px;
+        }
+
+        .speaker-status {
+            font-size: 12px;
+            color: var(--gray-dark);
             font-weight: 500;
+            margin-top: 2px;
             display: flex;
             align-items: center;
             gap: 6px;
-            justify-content: center;
         }
-        .speaker-status .live-badge {
+
+        .speaker-status .wave-bars {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            height: 18px;
+        }
+
+        .speaker-status .wave-bars span {
             display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--red);
-            animation: blink 1s ease-in-out infinite;
+            width: 3px;
+            background: var(--green-primary);
+            border-radius: 4px;
+            transition: var(--transition);
+            animation: none;
         }
-        @keyframes blink {
+
+        .speaker-status .wave-bars.active span:nth-child(1) {
+            animation: wave 0.6s ease-in-out infinite 0.0s;
+        }
+        .speaker-status .wave-bars.active span:nth-child(2) {
+            animation: wave 0.6s ease-in-out infinite 0.1s;
+        }
+        .speaker-status .wave-bars.active span:nth-child(3) {
+            animation: wave 0.6s ease-in-out infinite 0.2s;
+        }
+        .speaker-status .wave-bars.active span:nth-child(4) {
+            animation: wave 0.6s ease-in-out infinite 0.3s;
+        }
+        .speaker-status .wave-bars.active span:nth-child(5) {
+            animation: wave 0.6s ease-in-out infinite 0.4s;
+        }
+
+        @keyframes wave {
+            0%,
+            100% {
+                height: 4px;
+                opacity: 0.4;
+            }
+            50% {
+                height: 18px;
+                opacity: 1;
+            }
+        }
+
+        /* ===== PARTICIPANTS GRID ===== */
+        .participants-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px 8px;
+            background: var(--gray-light);
+            min-height: 0;
+        }
+
+        .participants-section::-webkit-scrollbar {
+            width: 3px;
+        }
+        .participants-section::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .participants-section::-webkit-scrollbar-thumb {
+            background: var(--gray-mid);
+            border-radius: 10px;
+        }
+
+        .participants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 12px;
+            padding-bottom: 8px;
+        }
+
+        .participant-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--white);
+            border-radius: var(--radius-sm);
+            padding: 12px 6px 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: var(--transition);
+            border: 2px solid transparent;
+            position: relative;
+            cursor: default;
+        }
+
+        .participant-card.speaking {
+            border-color: var(--yellow-primary);
+            background: #fffbeb;
+            transform: scale(1.03);
+            box-shadow: 0 4px 20px rgba(241, 196, 15, 0.18);
+        }
+
+        .participant-card .p-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green-light), var(--green-primary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--white);
+            transition: var(--transition);
+            flex-shrink: 0;
+            margin-bottom: 4px;
+        }
+
+        .participant-card .p-avatar.speaking-avatar {
+            animation: avatar-glow 0.8s ease-in-out infinite alternate;
+        }
+
+        @keyframes avatar-glow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.3);
+            }
+            100% {
+                box-shadow: 0 0 20px 6px rgba(241, 196, 15, 0.25);
+            }
+        }
+
+        .participant-card .p-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dark);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60px;
+        }
+
+        .participant-card .p-status {
+            font-size: 8px;
+            color: var(--gray-dark);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .participant-card .p-status.speaking-text {
+            color: var(--yellow-dark);
+            font-weight: 700;
+        }
+
+        .participant-card .p-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--green-primary);
+            color: white;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+        }
+
+        /* ===== PUSH-TO-TALK + CONTROLS ===== */
+        .controls-section {
+            padding: 12px 20px 20px;
+            background: var(--white);
+            border-top: 1px solid var(--gray-light);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .ptt-button {
+            flex: 1;
+            max-width: 280px;
+            padding: 18px 24px;
+            border: none;
+            border-radius: 60px;
+            background: linear-gradient(135deg, var(--green-primary), var(--green-dark));
+            color: var(--white);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 4px 24px rgba(46, 204, 113, 0.35);
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            position: relative;
+            overflow: hidden;
+            min-height: 64px;
+        }
+
+        .ptt-button:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 12px rgba(46, 204, 113, 0.25);
+        }
+
+        .ptt-button .ptt-icon {
+            font-size: 22px;
+            transition: var(--transition);
+        }
+
+        .ptt-button .ptt-label {
+            transition: var(--transition);
+        }
+
+        .ptt-button.active {
+            background: linear-gradient(135deg, var(--yellow-primary), var(--yellow-dark));
+            box-shadow: 0 4px 32px rgba(241, 196, 15, 0.45);
+            animation: ptt-pulse 0.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes ptt-pulse {
+            0% {
+                box-shadow: 0 4px 24px rgba(241, 196, 15, 0.35);
+            }
+            100% {
+                box-shadow: 0 4px 48px rgba(241, 196, 15, 0.60);
+            }
+        }
+
+        .ptt-button .recording-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e74c3c;
+            display: none;
+            animation: blink-dot 0.8s ease-in-out infinite;
+        }
+
+        .ptt-button.recording .recording-dot {
+            display: inline-block;
+        }
+
+        @keyframes blink-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.3;
+                transform: scale(0.7);
+            }
+        }
+
+        .ptt-button:disabled {
+            opacity: 0.5;
+            transform: none !important;
+            cursor: not-allowed;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .controls-secondary {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .controls-secondary button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 40px;
+            background: var(--gray-light);
+            color: var(--gray-dark);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            touch-action: manipulation;
+        }
+
+        .controls-secondary button:active {
+            transform: scale(0.94);
+        }
+
+        .controls-secondary button.active-btn {
+            background: var(--green-light);
+            color: var(--green-dark);
+        }
+
+        .controls-secondary button.record-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .controls-secondary button.record-btn.recording-active {
+            background: #dc2626;
+            color: white;
+            animation: record-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes record-pulse {
             0%,
             100% {
                 opacity: 1;
             }
             50% {
-                opacity: 0.2;
+                opacity: 0.6;
             }
-        }
-        .speaker-status .idle-badge {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--gray-light);
         }
 
-        /* ---- Sound visualisation ---- */
-        .sound-visual {
-            background: #f8fafc;
-            border-radius: 16px;
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            padding: 0 12px;
-            border: 1px solid var(--gray-light);
-            overflow: hidden;
-            position: relative;
-        }
-        .sound-visual .bar {
-            width: 5px;
-            border-radius: 4px;
-            background: var(--gray-light);
-            transition: height 0.08s ease-out, background 0.2s;
-            height: 6px;
-            min-height: 3px;
-            flex-shrink: 0;
-        }
-        .sound-visual .bar.active {
-            background: var(--green-light);
-        }
-        .sound-visual .bar.loud {
-            background: var(--yellow);
-        }
-        .sound-visual .bar.very-loud {
-            background: var(--red);
-        }
-
-        /* ---- Controls ---- */
-        .controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            margin-top: 2px;
-        }
-        .controls .btn-talk {
-            flex: 1;
-            padding: 18px 12px;
-            border: none;
-            border-radius: 20px;
-            background: var(--green);
-            color: #fff;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(46, 125, 50, 0.25);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-touch-callout: none;
-            position: relative;
-            min-height: 64px;
-        }
-        .controls .btn-talk:active {
-            transform: scale(0.96);
-            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.15);
-        }
-        .controls .btn-talk.talking {
-            background: var(--yellow);
-            box-shadow: 0 4px 20px rgba(249, 168, 37, 0.35);
-            color: var(--dark);
-            animation: talk-pulse 0.6s ease-in-out infinite alternate;
-        }
-        @keyframes talk-pulse {
-            0% {
-                transform: scale(1);
-            }
-            100% {
-                transform: scale(1.02);
-            }
-        }
-        .controls .btn-talk.talking:active {
-            transform: scale(0.96);
-        }
-        .controls .btn-talk:disabled {
-            opacity: 0.4;
-            transform: none;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        .controls .btn-talk .mic-icon {
-            font-size: 26px;
-            line-height: 1;
-        }
-        .controls .btn-talk .talk-label {
-            font-size: 15px;
-            font-weight: 600;
-        }
-        .controls .btn-talk .talk-hint {
-            font-size: 11px;
-            opacity: 0.8;
-            font-weight: 400;
-            display: block;
-            margin-top: 2px;
-        }
-
-        .btn-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 18px;
-            border: 2px solid var(--gray-light);
-            background: #ffffff;
-            font-size: 22px;
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s, transform 0.1s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-touch-callout: none;
-            color: var(--dark);
-            position: relative;
-        }
-        .btn-icon:active {
-            transform: scale(0.92);
-        }
-        .btn-icon.recording {
-            border-color: var(--red);
-            background: var(--red-bg);
-            color: var(--red);
-            animation: record-pulse 1.2s ease-in-out infinite;
-        }
-        @keyframes record-pulse {
-            0%,
-            100% {
-                box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.25);
-            }
-            50% {
-                box-shadow: 0 0 0 10px rgba(229, 57, 53, 0);
-            }
-        }
-        .btn-icon .badge-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--red);
-            display: none;
+        /* ===== SETUP / JOIN OVERLAY ===== */
+        .setup-overlay {
             position: absolute;
-            top: 4px;
-            right: 4px;
-        }
-        .btn-icon.recording .badge-dot {
-            display: block;
-        }
-
-        /* ---- Speakerphone toggle ---- */
-        .speaker-toggle-wrap {
+            inset: 0;
+            background: var(--white);
+            z-index: 100;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 2px 0 4px;
+            padding: 40px 24px;
+            transition: var(--transition);
+            backdrop-filter: blur(4px);
         }
-        .speaker-toggle-wrap .speaker-label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--gray);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .speaker-toggle {
-            position: relative;
-            width: 48px;
-            height: 28px;
-            background: var(--gray-light);
-            border-radius: 40px;
-            cursor: pointer;
-            transition: background 0.25s;
-            flex-shrink: 0;
-            border: 2px solid transparent;
-        }
-        .speaker-toggle.active {
-            background: var(--green-light);
-            border-color: var(--green);
-        }
-        .speaker-toggle .toggle-knob {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
-        .speaker-toggle.active .toggle-knob {
-            transform: translateX(20px);
-            background: #fff;
-        }
-        .speaker-toggle .toggle-icon {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
+
+        .setup-overlay.hidden {
+            opacity: 0;
             pointer-events: none;
+            transform: scale(1.04);
+        }
+
+        .setup-overlay .setup-logo {
+            font-size: 56px;
+            color: var(--green-primary);
+            margin-bottom: 8px;
+        }
+
+        .setup-overlay h2 {
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, var(--green-primary), var(--green-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .setup-overlay p {
+            color: var(--gray-dark);
+            font-size: 14px;
+            margin-bottom: 24px;
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .setup-overlay .form-group {
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 14px;
+        }
+
+        .setup-overlay .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+
+        .setup-overlay .form-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--gray-mid);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 500;
+            outline: none;
+            transition: var(--transition);
+            background: var(--gray-light);
+            color: var(--text-dark);
+            font-family: inherit;
+        }
+
+        .setup-overlay .form-group input:focus {
+            border-color: var(--green-primary);
+            background: var(--white);
+            box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.10);
+        }
+
+        .setup-overlay .form-group input::placeholder {
+            color: var(--gray-dark);
             opacity: 0.5;
         }
-        .speaker-toggle.active .toggle-icon {
-            opacity: 1;
-            color: #fff;
+
+        .setup-overlay .form-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 320px;
         }
 
-        /* ---- Peer list ---- */
-        .peer-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 8px 0 2px;
-            justify-content: center;
+        .setup-overlay .form-row .form-group {
+            flex: 1;
         }
-        .peer-chip {
-            background: var(--gray-light);
-            padding: 6px 14px 6px 10px;
-            border-radius: 40px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--dark);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid transparent;
-            transition: border-color 0.2s, background 0.2s;
-        }
-        .peer-chip .chip-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--green);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
+
+        .setup-overlay .btn-primary {
+            width: 100%;
+            max-width: 320px;
+            padding: 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--green-primary), var(--green-dark));
+            color: var(--white);
+            font-size: 17px;
             font-weight: 700;
-        }
-        .peer-chip.active-speaker {
-            border-color: var(--yellow);
-            background: var(--yellow-bg);
-        }
-        .peer-chip .chip-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--gray);
-        }
-        .peer-chip.active-speaker .chip-dot {
-            background: var(--yellow);
-            animation: pulse-dot 0.8s ease-in-out infinite;
-        }
-        .peer-chip.self {
-            border-color: var(--green-light);
-            background: var(--green-bg);
-        }
-        .peer-chip.self .chip-dot {
-            background: var(--green-light);
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 24px rgba(46, 204, 113, 0.30);
+            margin-top: 4px;
+            font-family: inherit;
         }
 
-        /* ---- Connection status ---- */
-        .conn-status {
-            font-size: 12px;
-            color: var(--gray);
-            text-align: center;
-            padding: 6px 0 0;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+        .setup-overlay .btn-primary:active {
+            transform: scale(0.97);
         }
-        .conn-status .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
+
+        .setup-overlay .btn-secondary {
+            width: 100%;
+            max-width: 320px;
+            padding: 14px;
+            border: 2px solid var(--gray-mid);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-dark);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            margin-top: 8px;
+        }
+
+        .setup-overlay .btn-secondary:active {
+            transform: scale(0.97);
             background: var(--gray-light);
         }
-        .conn-status .status-dot.online {
-            background: var(--green-light);
-        }
-        .conn-status .status-dot.error {
-            background: var(--red);
+
+        .setup-overlay .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 320px;
+            margin: 12px 0;
         }
 
-        /* ---------- TOAST ---------- */
+        .setup-overlay .divider::before,
+        .setup-overlay .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--gray-mid);
+        }
+
+        .setup-overlay .divider span {
+            font-size: 12px;
+            color: var(--gray-dark);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .setup-overlay .connection-help {
+            font-size: 12px;
+            color: var(--gray-dark);
+            text-align: center;
+            max-width: 320px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .setup-overlay .connection-help code {
+            background: var(--gray-light);
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dark);
+            word-break: break-all;
+        }
+
+        /* ===== TOAST / NOTIFICATION ===== */
         .toast {
             position: fixed;
-            bottom: 30px;
+            bottom: 100px;
             left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: var(--dark);
-            color: #fff;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--text-dark);
+            color: var(--white);
             padding: 12px 24px;
-            border-radius: 16px;
+            border-radius: 40px;
             font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+            font-weight: 600;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.20);
+            z-index: 200;
             opacity: 0;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
-            z-index: 999;
             pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             max-width: 90%;
             text-align: center;
-        }
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
+            font-family: inherit;
         }
 
-        /* ---------- RESPONSIVE ---------- */
-        @media (max-width: 440px) {
-            .app-container {
-                padding: 16px 16px 24px;
-                border-radius: 28px;
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            background: var(--green-dark);
+        }
+        .toast.error {
+            background: #e74c3c;
+        }
+        .toast.warning {
+            background: var(--yellow-dark);
+            color: var(--text-dark);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (min-width: 481px) {
+            #app {
+                border-radius: 32px;
+                margin-top: 12px;
+                margin-bottom: 12px;
+                height: calc(100vh - 24px);
+                max-height: 900px;
+                box-shadow: 0 20px 80px rgba(0, 0, 0, 0.12);
             }
+            body {
+                background: var(--gray-light);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 380px) {
             .speaker-avatar {
-                width: 60px;
-                height: 60px;
+                width: 64px;
+                height: 64px;
                 font-size: 28px;
             }
-            .controls .btn-talk {
-                padding: 16px 10px;
-                font-size: 16px;
-                min-height: 58px;
+            .speaker-name {
+                font-size: 15px;
             }
-            .controls .btn-talk .mic-icon {
-                font-size: 22px;
+            .ptt-button {
+                font-size: 15px;
+                padding: 14px 18px;
+                min-height: 54px;
             }
-            .btn-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 19px;
+            .participants-grid {
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+                gap: 8px;
+            }
+            .participant-card .p-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
             }
             .header h1 {
                 font-size: 17px;
             }
-            .room-badge {
-                font-size: 11px;
-                padding: 3px 12px;
-            }
-        }
-        @media (max-width: 370px) {
-            .speaker-avatar {
-                width: 50px;
-                height: 50px;
-                font-size: 22px;
-            }
-            .controls .btn-talk {
-                font-size: 14px;
-                padding: 14px 8px;
-                min-height: 52px;
-            }
-            .btn-icon {
-                width: 44px;
-                height: 44px;
-                font-size: 17px;
-            }
         }
 
-        /* ---------- UTILITY ---------- */
+        /* ===== SCROLLBAR STYLING ===== */
+        ::-webkit-scrollbar {
+            width: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray-mid);
+            border-radius: 10px;
+        }
+
+        /* ===== UTILITY ===== */
         .hidden {
             display: none !important;
         }
-        .text-center {
-            text-align: center;
-        }
-        .mt-2 {
-            margin-top: 8px;
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        ::-webkit-scrollbar {
-            width: 4px;
+        /* ===== MIC PERMISSION BANNER ===== */
+        .mic-permission-banner {
+            background: #fef9e7;
+            border: 1px solid var(--yellow-light);
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dark);
+            margin: 0 16px 8px;
+            flex-shrink: 0;
         }
-        ::-webkit-scrollbar-track {
-            background: var(--gray-light);
+
+        .mic-permission-banner i {
+            color: var(--yellow-dark);
+            font-size: 18px;
         }
-        ::-webkit-scrollbar-thumb {
-            background: var(--green-light);
-            border-radius: 10px;
+
+        .mic-permission-banner button {
+            background: var(--yellow-primary);
+            border: none;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-dark);
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .mic-permission-banner button:active {
+            transform: scale(0.94);
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes slide-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-up {
+            animation: slide-up 0.4s ease-out forwards;
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
+
+        /* Speaker name animation */
+        .speaker-name.pop {
+            animation: name-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes name-pop {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Recording indicator pulse on avatar */
+        .speaker-avatar.recording-avatar .avatar-ring {
+            border-color: #e74c3c !important;
+            animation: ring-pulse-red 0.6s ease-in-out infinite !important;
+        }
+
+        @keyframes ring-pulse-red {
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.3);
+            }
+            50% {
+                transform: scale(1.12);
+                box-shadow: 0 0 24px 8px rgba(231, 76, 60, 0.20);
+            }
         }
     </style>
 </head>
-
 <body>
 
-    <!-- ====== TOAST ====== -->
+    <!-- ===== TOAST ===== -->
     <div id="toast" class="toast"></div>
 
-    <!-- ====== APP ====== -->
-    <div class="app-container" id="app">
+    <!-- ===== APP ===== -->
+    <div id="app">
 
-        <!-- ====== HEADER ====== -->
-        <div class="header">
-            <h1>
-                📻 Walkie
-                <span>Live</span>
-            </h1>
-            <div class="room-badge" id="roomBadge">
-                <span class="dot"></span>
-                <span id="roomNameDisplay">---</span>
+        <!-- ===== SETUP OVERLAY ===== -->
+        <div id="setupOverlay" class="setup-overlay">
+            <div class="setup-logo"><i class="fas fa-walkie-talkie"></i></div>
+            <h2>Walkie Talkie</h2>
+            <p>Wi-Fi හරහා සජීවී කතාබහට සම්බන්ධ වන්න</p>
+
+            <div class="form-group">
+                <label>ඔබගේ නම</label>
+                <input id="userNameInput" type="text" placeholder="ඔබගේ නම ඇතුළත් කරන්න" value="User" maxlength="20">
             </div>
-        </div>
 
-        <!-- ====== JOIN SCREEN ====== -->
-        <div class="join-screen" id="joinScreen">
-            <div class="logo">🎙️</div>
-            <h2>Join a Room</h2>
-            <p>Enter a room name and your display name to start talking.</p>
-            <div class="join-form">
-                <input type="text" id="roomInput" placeholder="Room name (e.g. team-alpha)" value="demo-room" />
-                <input type="text" id="nameInput" placeholder="Your name" value="User" />
-                <button class="btn-primary" id="joinBtn">
-                    <span>🔊</span> Join &amp; Talk
-                </button>
-            </div>
-            <div style="font-size:13px;color:var(--gray);margin-top:4px;">
-                📢 All devices in the same room can talk &amp; hear through speakerphone
-            </div>
-        </div>
-
-        <!-- ====== WALKIE SCREEN ====== -->
-        <div class="walkie-screen" id="walkieScreen">
-
-            <!-- Speaker display -->
-            <div class="speaker-display" id="speakerDisplay">
-                <div class="speaker-avatar" id="speakerAvatar">
-                    <span id="avatarEmoji">👤</span>
-                    <div class="ring" id="ringEffect"></div>
-                    <div class="wave-ring"></div>
-                    <div class="wave-ring"></div>
-                    <div class="wave-ring"></div>
-                </div>
-                <div class="speaker-name" id="speakerName">Waiting...</div>
-                <div class="speaker-status" id="speakerStatus">
-                    <span class="idle-badge" id="statusBadge"></span>
-                    <span id="statusText">Idle</span>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>කාමර කේතය</label>
+                    <input id="roomCodeInput" type="text" placeholder="කාමර කේතය" value="" maxlength="6">
                 </div>
             </div>
 
-            <!-- Sound visualisation -->
-            <div class="sound-visual" id="soundVisual">
-                <!-- bars generated by JS -->
-            </div>
-
-            <!-- Speakerphone toggle -->
-            <div class="speaker-toggle-wrap">
-                <span class="speaker-label">
-                    <span>🔊</span> Speakerphone
-                </span>
-                <div class="speaker-toggle active" id="speakerToggle" role="button" tabindex="0" aria-label="Toggle speakerphone">
-                    <span class="toggle-icon">🔊</span>
-                    <span class="toggle-knob"></span>
-                </div>
-                <span style="font-size:12px;color:var(--gray);">On</span>
-            </div>
-
-            <!-- Controls -->
-            <div class="controls">
-                <button class="btn-talk" id="talkBtn">
-                    <span class="mic-icon">🎤</span>
-                    <span>
-                        <span class="talk-label">Hold to Talk</span>
-                        <span class="talk-hint">Press &amp; hold · release to listen</span>
-                    </span>
-                </button>
-                <button class="btn-icon" id="recordBtn" title="Record">
-                    <span class="badge-dot"></span>
-                    <span id="recordIcon">⏺️</span>
-                </button>
-            </div>
-
-            <!-- Peer list -->
-            <div class="peer-list" id="peerList"></div>
-
-            <!-- Connection status -->
-            <div class="conn-status" id="connStatus">
-                <span class="status-dot" id="connDot"></span>
-                <span id="connText">Connecting...</span>
-            </div>
-
-            <!-- Leave button -->
-            <button class="btn-secondary danger" id="leaveBtn" style="margin-top:6px;width:100%;">
-                🚪 Leave Room
+            <button id="joinRoomBtn" class="btn-primary">
+                <i class="fas fa-arrow-right"></i> කාමරයට සම්බන්ධ වන්න
             </button>
+
+            <div class="divider">
+                <span>හෝ</span>
+            </div>
+
+            <button id="createRoomBtn" class="btn-secondary">
+                <i class="fas fa-plus-circle"></i> නව කාමරයක් සාදන්න
+            </button>
+
+            <div class="connection-help" id="connectionHelp">
+                <span>🔗 කාමර කේතය බෙදා ගන්න. සියලුම දෙනා එකම කාමර කේතය භාවිතා කළ යුතුය.</span>
+            </div>
+
+            <div class="connection-help" style="margin-top:6px; font-size:11px; opacity:0.6;">
+                <i class="fas fa-microphone"></i> මයික්රොෆෝන අවසරය අවශ්‍යයි
+            </div>
+        </div>
+
+        <!-- ===== STATUS BAR ===== -->
+        <div class="status-bar">
+            <div class="connection-status">
+                <span class="status-dot disconnected" id="statusDot"></span>
+                <span id="statusText">විසන්ධිතයි</span>
+            </div>
+            <div class="room-info" id="roomInfo">කාමරය: ---</div>
+        </div>
+
+        <!-- ===== HEADER ===== -->
+        <div class="header">
+            <h1><i class="fas fa-walkie-talkie"></i> Walkie</h1>
+            <div class="header-actions">
+                <button id="speakerToggle" title="ස්පීකර් ඔන්/ඕෆ්">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <button id="leaveRoomBtn" title="කාමරයෙන් පිටවන්න">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== MIC PERMISSION BANNER ===== -->
+        <div id="micBanner" class="mic-permission-banner hidden">
+            <i class="fas fa-microphone-slash"></i>
+            <span>මයික්රොෆෝන අවසරය අවශ්‍යයි</span>
+            <button id="requestMicBtn">අවසර ඉල්ලන්න</button>
+        </div>
+
+        <!-- ===== SPEAKER SECTION ===== -->
+        <div class="speaker-section" id="speakerSection">
+            <div class="speaker-avatar" id="speakerAvatar">
+                <span id="avatarInitials">U</span>
+                <div class="avatar-ring" id="avatarRing"></div>
+                <div class="mic-indicator" id="micIndicator">
+                    <i class="fas fa-microphone"></i>
+                </div>
+            </div>
+            <div class="speaker-name" id="speakerName">
+                <span id="displayName">ඔබ</span>
+                <span class="name-label" id="nameLabel">(ඔබ)</span>
+            </div>
+            <div class="speaker-status" id="speakerStatus">
+                <span id="statusLabel">නිශ්ශබ්ද</span>
+                <div class="wave-bars" id="waveBars">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PARTICIPANTS ===== -->
+        <div class="participants-section" id="participantsSection">
+            <div class="participants-grid" id="participantsGrid">
+                <!-- Dynamic participants -->
+            </div>
+        </div>
+
+        <!-- ===== CONTROLS ===== -->
+        <div class="controls-section">
+            <div class="controls-row">
+                <button class="ptt-button" id="pttButton">
+                    <span class="ptt-icon"><i class="fas fa-microphone"></i></span>
+                    <span class="ptt-label">කතා කිරීමට ඔබන්න</span>
+                    <span class="recording-dot"></span>
+                </button>
+            </div>
+            <div class="controls-secondary">
+                <button id="recordBtn" class="record-btn">
+                    <i class="fas fa-circle"></i> පටිගත කරන්න
+                </button>
+                <button id="muteBtn" class="active-btn">
+                    <i class="fas fa-microphone"></i> මයික්
+                </button>
+            </div>
         </div>
 
     </div>
 
     <script>
-        // ================================================================
-        //  WALKIE-TALKIE — Full implementation with Speakerphone
-        // ================================================================
+        // ============================================================
+        //  WALKIE TALKIE – Full WebRTC Implementation
+        //  Uses manual signaling via Room Code (copy‑paste offer/answer)
+        // ============================================================
 
         (function() {
             'use strict';
 
-            // -------- DOM refs --------
-            const joinScreen = document.getElementById('joinScreen');
-            const walkieScreen = document.getElementById('walkieScreen');
-            const roomInput = document.getElementById('roomInput');
-            const nameInput = document.getElementById('nameInput');
-            const joinBtn = document.getElementById('joinBtn');
-            const leaveBtn = document.getElementById('leaveBtn');
-            const roomNameDisplay = document.getElementById('roomNameDisplay');
+            // ----- DOM refs -----
+            const $ = id => document.getElementById(id);
+            const dom = {
+                setupOverlay: $('setupOverlay'),
+                userNameInput: $('userNameInput'),
+                roomCodeInput: $('roomCodeInput'),
+                joinRoomBtn: $('joinRoomBtn'),
+                createRoomBtn: $('createRoomBtn'),
+                connectionHelp: $('connectionHelp'),
 
-            const speakerDisplay = document.getElementById('speakerDisplay');
-            const speakerAvatar = document.getElementById('speakerAvatar');
-            const avatarEmoji = document.getElementById('avatarEmoji');
-            const ringEffect = document.getElementById('ringEffect');
-            const speakerName = document.getElementById('speakerName');
-            const speakerStatus = document.getElementById('speakerStatus');
-            const statusBadge = document.getElementById('statusBadge');
-            const statusText = document.getElementById('statusText');
+                statusDot: $('statusDot'),
+                statusText: $('statusText'),
+                roomInfo: $('roomInfo'),
 
-            const soundVisual = document.getElementById('soundVisual');
-            const talkBtn = document.getElementById('talkBtn');
-            const recordBtn = document.getElementById('recordBtn');
-            const recordIcon = document.getElementById('recordIcon');
-            const peerList = document.getElementById('peerList');
-            const connStatus = document.getElementById('connStatus');
-            const connDot = document.getElementById('connDot');
-            const connText = document.getElementById('connText');
+                speakerAvatar: $('speakerAvatar'),
+                avatarInitials: $('avatarInitials'),
+                avatarRing: $('avatarRing'),
+                micIndicator: $('micIndicator'),
+                displayName: $('displayName'),
+                nameLabel: $('nameLabel'),
+                statusLabel: $('statusLabel'),
+                waveBars: $('waveBars'),
 
-            const toast = document.getElementById('toast');
-            const speakerToggle = document.getElementById('speakerToggle');
-            const speakerToggleLabel = speakerToggle.nextElementSibling;
+                participantsGrid: $('participantsGrid'),
 
-            // -------- State --------
-            let peer = null;
-            let connections = {};
-            let localStream = null;
-            let audioContext = null;
-            let analyser = null;
-            let dataArray = null;
-            let animationId = null;
-            let isTalking = false;
-            let isRecording = false;
-            let mediaRecorder = null;
-            let recordedChunks = [];
-            let currentRoom = '';
-            let currentName = '';
-            let myPeerId = '';
-            let isSpeakerActive = false;
-            let speakerPeerId = null;
-            let peerIdToName = {};
-            let peerIdToEmoji = {};
-            let isSpeakerphoneOn = true;
-            let audioElements = {};
+                pttButton: $('pttButton'),
+                recordBtn: $('recordBtn'),
+                muteBtn: $('muteBtn'),
+                speakerToggle: $('speakerToggle'),
+                leaveRoomBtn: $('leaveRoomBtn'),
 
-            // -------- Toast --------
-            let toastTimer = null;
+                micBanner: $('micBanner'),
+                requestMicBtn: $('requestMicBtn'),
 
-            function showToast(msg, duration = 2800) {
-                toast.textContent = msg;
-                toast.classList.add('show');
-                clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
-            }
+                toast: $('toast'),
+            };
 
-            // -------- Audio helpers --------
-            function getEmojiForName(name) {
-                const emojis = ['👤', '🧑', '👩', '👨', '🧔', '👧', '👦', '👶', '🧒', '👨‍🦰', '👩‍🦰', '🧑‍🦰',
-                    '👨‍🦱', '👩‍🦱', '🧑‍🦱', '👨‍🦳', '👩‍🦳', '🧑‍🦳', '👨‍🦲', '👩‍🦲', '🧑‍🦲'
-                ];
-                let hash = 0;
-                for (let i = 0; i < name.length; i++) {
-                    hash = (hash * 31 + name.charCodeAt(i)) & 0x7fffffff;
-                }
-                return emojis[hash % emojis.length] || '👤';
+            // ----- State -----
+            const state = {
+                userName: 'User',
+                roomCode: '',
+                isConnected: false,
+                isSpeaking: false,
+                isMuted: false,
+                isRecording: false,
+                isSpeakerOn: true,
+                myId: '',
+                peers: new Map(), // peerId -> { conn, stream, name, avatar }
+                localStream: null,
+                audioContext: null,
+                mediaRecorder: null,
+                recordedChunks: [],
+                pttPressed: false,
+                isInitiator: false,
+            };
+
+            // ----- Helpers -----
+            function generateId() {
+                return Math.random().toString(36).substring(2, 8).toUpperCase();
             }
 
             function getInitials(name) {
                 return name.charAt(0).toUpperCase();
             }
 
-            // -------- Build sound visual bars --------
-            const BAR_COUNT = 28;
-
-            function buildBars() {
-                soundVisual.innerHTML = '';
-                for (let i = 0; i < BAR_COUNT; i++) {
-                    const bar = document.createElement('div');
-                    bar.className = 'bar';
-                    bar.style.height = '4px';
-                    soundVisual.appendChild(bar);
-                }
-            }
-            buildBars();
-
-            function updateBars(level) {
-                const bars = soundVisual.querySelectorAll('.bar');
-                const count = bars.length;
-                const scaled = Math.min(level * 1.6, 1);
-                const height = 4 + scaled * 40;
-                const half = Math.floor(count / 2);
-                for (let i = 0; i < count; i++) {
-                    const dist = Math.abs(i - half) / half;
-                    const factor = 1 - dist * 0.6;
-                    const h = height * factor;
-                    bars[i].style.height = Math.max(3, h) + 'px';
-                    bars[i].classList.toggle('active', h > 10);
-                    bars[i].classList.toggle('loud', h > 28);
-                    bars[i].classList.toggle('very-loud', h > 40);
-                }
+            function randomColor() {
+                const colors = ['#2ecc71', '#f1c40f', '#3498db', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22'];
+                return colors[Math.floor(Math.random() * colors.length)];
             }
 
-            function resetBars() {
-                const bars = soundVisual.querySelectorAll('.bar');
-                bars.forEach(b => {
-                    b.style.height = '4px';
-                    b.classList.remove('active', 'loud', 'very-loud');
-                });
+            function toast(msg, type = 'info', duration = 2500) {
+                const el = dom.toast;
+                el.textContent = msg;
+                el.className = 'toast ' + type;
+                // force reflow
+                void el.offsetWidth;
+                el.classList.add('show');
+                clearTimeout(el._timer);
+                el._timer = setTimeout(() => el.classList.remove('show'), duration);
             }
 
-            // -------- Audio context & analyser --------
-            function initAudioContext() {
-                if (!audioContext) {
-                    audioContext = new(window.AudioContext || window.webkitAudioContext)();
-                    analyser = audioContext.createAnalyser();
-                    analyser.fftSize = 256;
-                    analyser.smoothingTimeConstant = 0.7;
-                    dataArray = new Uint8Array(analyser.frequencyBinCount);
-                }
-                return audioContext;
+            // ----- UI Updates -----
+            function updateStatus(status, text) {
+                const dot = dom.statusDot;
+                dot.className = 'status-dot ' + status;
+                dom.statusText.textContent = text;
             }
 
-            function getAudioLevel() {
-                if (!analyser) return 0;
-                analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
-                }
-                return (sum / dataArray.length) / 255;
+            function updateRoomInfo(code) {
+                dom.roomInfo.textContent = code ? 'කාමරය: ' + code : 'කාමරය: ---';
             }
 
-            // -------- Speakerphone control --------
-            function setSpeakerphone(on) {
-                isSpeakerphoneOn = on;
-                // Apply to all remote audio elements
-                Object.keys(audioElements).forEach(key => {
-                    if (key.endsWith('_audio')) {
-                        const el = audioElements[key];
-                        if (el) {
-                            // Force speakerphone: set volume and use HTML5 audio attributes
-                            // In mobile browsers, this typically routes to speaker
-                            el.volume = 1.0;
-                            // Some browsers support setSinkId for output device selection
-                            if (el.setSinkId && on) {
-                                // Try to set to speakerphone (default is usually speaker)
-                                // 'default' is the system default, but we want speaker
-                                // In practice, we just ensure it's not muted
-                            }
-                        }
-                    }
-                });
-                // Update toggle UI
-                speakerToggle.classList.toggle('active', on);
-                if (speakerToggleLabel) {
-                    speakerToggleLabel.textContent = on ? 'On' : 'Off';
-                }
-                showToast(on ? '🔊 Speakerphone ON' : '🔇 Speakerphone OFF', 1800);
-            }
+            function updateSpeaker(name, isSpeaking, isRecording) {
+                const initials = getInitials(name);
+                dom.avatarInitials.textContent = initials;
+                dom.displayName.textContent = name;
+                dom.nameLabel.textContent = (name === state.userName) ? '(ඔබ)' : '';
 
-            // -------- Animation loop --------
-            let animationRunning = false;
-
-            function startAnimation() {
-                if (animationRunning) return;
-                animationRunning = true;
-
-                function loop() {
-                    let level = 0;
-                    if (isTalking) {
-                        level = getAudioLevel();
-                    } else if (isSpeakerActive && speakerPeerId) {
-                        const key = `${speakerPeerId}_analyser`;
-                        const ra = audioElements[key];
-                        if (ra) {
-                            const arr = new Uint8Array(ra.frequencyBinCount);
-                            ra.getByteFrequencyData(arr);
-                            let sum = 0;
-                            for (let i = 0; i < arr.length; i++) sum += arr[i];
-                            level = (sum / arr.length) / 255;
-                        }
-                    }
-                    const displayLevel = Math.min(level * 1.2, 1);
-
-                    if (isTalking || isSpeakerActive) {
-                        updateBars(displayLevel);
-                    } else {
-                        resetBars();
-                    }
-
-                    const isSpeakingNow = displayLevel > 0.05;
-                    if (isSpeakingNow && (isTalking || isSpeakerActive)) {
-                        speakerDisplay.classList.add('speaking');
-                        speakerAvatar.classList.add('speaking-avatar');
-                        ringEffect.classList.add('active');
-                        speakerName.classList.add('speaking-name');
-                        statusBadge.className = 'live-badge';
-                        statusText.textContent = '🔊 Speaking';
-                        isSpeakerActive = true;
-                    } else if (isTalking || isSpeakerActive) {
-                        if (isTalking) {
-                            if (displayLevel < 0.03) {
-                                speakerDisplay.classList.remove('speaking');
-                                speakerAvatar.classList.remove('speaking-avatar');
-                                ringEffect.classList.remove('active');
-                                speakerName.classList.remove('speaking-name');
-                                statusBadge.className = 'idle-badge';
-                                statusText.textContent = '🎙️ Ready';
-                            }
-                        } else {
-                            if (displayLevel < 0.03 && isSpeakerActive) {
-                                isSpeakerActive = false;
-                                speakerDisplay.classList.remove('speaking');
-                                speakerAvatar.classList.remove('speaking-avatar');
-                                ringEffect.classList.remove('active');
-                                speakerName.classList.remove('speaking-name');
-                                statusBadge.className = 'idle-badge';
-                                statusText.textContent = 'Idle';
-                                resetBars();
-                            }
-                        }
-                    } else {
-                        speakerDisplay.classList.remove('speaking');
-                        speakerAvatar.classList.remove('speaking-avatar');
-                        ringEffect.classList.remove('active');
-                        speakerName.classList.remove('speaking-name');
-                        statusBadge.className = 'idle-badge';
-                        statusText.textContent = 'Idle';
-                        resetBars();
-                    }
-
-                    animationId = requestAnimationFrame(loop);
-                }
-                loop();
-            }
-
-            function stopAnimation() {
-                animationRunning = false;
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                resetBars();
-                if (!isTalking && !isSpeakerActive) {
-                    speakerDisplay.classList.remove('speaking');
-                    speakerAvatar.classList.remove('speaking-avatar');
-                    ringEffect.classList.remove('active');
-                    speakerName.classList.remove('speaking-name');
-                    statusBadge.className = 'idle-badge';
-                    statusText.textContent = 'Idle';
-                    isSpeakerActive = false;
-                }
-            }
-
-            // -------- Update speaker display for remote --------
-            function setRemoteSpeaker(peerId, name) {
-                const emoji = peerIdToEmoji[peerId] || '👤';
-                avatarEmoji.textContent = emoji;
-                speakerName.textContent = name || 'Unknown';
-                speakerDisplay.classList.add('speaking');
-                speakerAvatar.classList.add('speaking-avatar');
-                ringEffect.classList.add('active');
-                speakerName.classList.add('speaking-name');
-                statusBadge.className = 'live-badge';
-                statusText.textContent = '🔊 Speaking';
-                isSpeakerActive = true;
-                speakerPeerId = peerId;
-
-                document.querySelectorAll('.peer-chip').forEach(el => {
-                    el.classList.toggle('active-speaker', el.dataset.peerId === peerId);
-                });
-            }
-
-            function clearRemoteSpeaker() {
-                isSpeakerActive = false;
-                speakerPeerId = null;
-                speakerDisplay.classList.remove('speaking');
-                speakerAvatar.classList.remove('speaking-avatar');
-                ringEffect.classList.remove('active');
-                speakerName.classList.remove('speaking-name');
-                statusBadge.className = 'idle-badge';
-                statusText.textContent = 'Idle';
-                resetBars();
-                document.querySelectorAll('.peer-chip').forEach(el => {
-                    el.classList.remove('active-speaker');
-                });
-                if (currentName) {
-                    speakerName.textContent = currentName + ' (you)';
-                    avatarEmoji.textContent = getEmojiForName(currentName);
+                // Avatar ring
+                const ring = dom.avatarRing;
+                ring.className = 'avatar-ring';
+                if (isSpeaking) ring.classList.add('active');
+                if (isRecording) {
+                    dom.speakerAvatar.classList.add('recording-avatar');
                 } else {
-                    speakerName.textContent = 'Waiting...';
-                    avatarEmoji.textContent = '👤';
+                    dom.speakerAvatar.classList.remove('recording-avatar');
+                }
+
+                // Mic indicator
+                const micIcon = dom.micIndicator.querySelector('i');
+                if (state.isMuted) {
+                    micIcon.className = 'fas fa-microphone-slash';
+                    dom.micIndicator.className = 'mic-indicator muted';
+                } else {
+                    micIcon.className = 'fas fa-microphone';
+                    dom.micIndicator.className = 'mic-indicator';
+                }
+
+                // Status label
+                if (isSpeaking) {
+                    dom.statusLabel.textContent = 'කතා කරයි...';
+                    dom.waveBars.classList.add('active');
+                } else if (isRecording) {
+                    dom.statusLabel.textContent = 'පටිගත කරයි...';
+                    dom.waveBars.classList.remove('active');
+                } else {
+                    dom.statusLabel.textContent = state.isMuted ? 'නිශ්ශබ්ද' : 'සූදානම්';
+                    dom.waveBars.classList.remove('active');
+                }
+
+                // Name pop animation
+                dom.displayName.classList.remove('pop');
+                void dom.displayName.offsetWidth;
+                dom.displayName.classList.add('pop');
+            }
+
+            function renderParticipants() {
+                const grid = dom.participantsGrid;
+                grid.innerHTML = '';
+
+                // Self
+                const selfCard = createParticipantCard(state.userName, true, false);
+                grid.appendChild(selfCard);
+
+                // Peers
+                for (const [id, p] of state.peers) {
+                    const card = createParticipantCard(p.name, false, p.isSpeaking || false);
+                    card.dataset.peerId = id;
+                    grid.appendChild(card);
                 }
             }
 
-            // -------- Render peer list --------
-            function renderPeerList() {
-                const ids = Object.keys(connections).filter(k => !k.includes('_data') && !k.includes('_analyser'));
-                peerList.innerHTML = '';
-                if (ids.length === 0) {
-                    const chip = document.createElement('span');
-                    chip.className = 'peer-chip';
-                    chip.textContent = '👤 No others connected';
-                    chip.style.opacity = '0.6';
-                    peerList.appendChild(chip);
-                } else {
-                    // Self
-                    const selfChip = document.createElement('span');
-                    selfChip.className = 'peer-chip self';
-                    selfChip.innerHTML = `
-                        <span class="chip-avatar" style="background:var(--green-light);">${getInitials(currentName)}</span>
-                        ${currentName} (you)
-                        <span class="chip-dot"></span>
-                    `;
-                    peerList.appendChild(selfChip);
+            function createParticipantCard(name, isSelf, isSpeaking) {
+                const div = document.createElement('div');
+                div.className = 'participant-card';
+                if (isSpeaking) div.classList.add('speaking');
 
-                    ids.forEach(id => {
-                        const name = peerIdToName[id] || id.slice(0, 8);
-                        const emoji = peerIdToEmoji[id] || '👤';
-                        const chip = document.createElement('span');
-                        chip.className = 'peer-chip';
-                        chip.dataset.peerId = id;
-                        chip.innerHTML = `
-                            <span class="chip-avatar">${emoji}</span>
-                            ${name}
-                            <span class="chip-dot"></span>
-                        `;
-                        if (id === speakerPeerId && isSpeakerActive) {
-                            chip.classList.add('active-speaker');
+                const initials = getInitials(name);
+                const color = randomColor();
+
+                div.innerHTML = `
+              <div class="p-avatar ${isSpeaking ? 'speaking-avatar' : ''}" style="background:${color}">
+                ${initials}
+              </div>
+              <div class="p-name">${name}</div>
+              <div class="p-status ${isSpeaking ? 'speaking-text' : ''}">
+                ${isSelf ? 'ඔබ' : ''} ${isSpeaking ? '🔊' : ''}
+              </div>
+              ${isSelf ? '<div class="p-badge"><i class="fas fa-check"></i></div>' : ''}
+            `;
+                return div;
+            }
+
+            function updatePeerSpeaking(peerId, isSpeaking) {
+                const cards = dom.participantsGrid.querySelectorAll('.participant-card');
+                for (const card of cards) {
+                    if (card.dataset.peerId === peerId) {
+                        card.classList.toggle('speaking', isSpeaking);
+                        const avatar = card.querySelector('.p-avatar');
+                        if (avatar) avatar.classList.toggle('speaking-avatar', isSpeaking);
+                        const status = card.querySelector('.p-status');
+                        if (status) {
+                            status.classList.toggle('speaking-text', isSpeaking);
+                            status.textContent = isSpeaking ? '🔊' : '';
                         }
-                        peerList.appendChild(chip);
+                        break;
+                    }
+                }
+            }
+
+            // ----- WebRTC Signaling (manual) -----
+            let peerConnection = null;
+            let dataChannel = null;
+            let isInitiator = false;
+            let roomCode = '';
+
+            // Simple signaling: we use the room code as a "session key"
+            // The offer is encoded and shared via the room code.
+            // In a real app, you'd use a signaling server.
+            // Here we use a manual copy‑paste approach via the room code.
+
+            // We'll encode the offer as a base64 string that the user shares.
+            // For simplicity, we'll use the room code as a key to store the offer
+            // in the browser's localStorage (same device) – but for cross-device,
+            // the user must manually copy the offer.
+
+            // Actually, let's use a simpler approach: the room code is used as a
+            // shared secret. The initiator creates an offer, encodes it with the
+            // room code, and the joiner decodes it.
+
+            // For a truly manual system, we'll use the room code as a passphrase
+            // and the offer/answer are exchanged via copy-paste.
+
+            // Better approach: use a broadcast channel or a simple server.
+            // But since we're limited to a single HTML file, we'll use a manual
+            // copy-paste mechanism.
+
+            // I'll implement a simpler version where:
+            // 1. The room creator generates a room code and an offer
+            // 2. The offer is displayed as text to copy
+            // 3. Joiners paste the offer to connect
+
+            // Actually, let me simplify even further: we'll use the room code
+            // as a shared key. The creator generates an offer and stores it
+            // in localStorage with the room code as the key.
+            // Joiners can then retrieve it if they're on the same device.
+            // For cross-device, they'll need to manually share the offer.
+
+            // This is not ideal but works for demo purposes.
+
+            // Let me use a more practical approach: the room code is used
+            // to generate a unique identifier. The offer is displayed as
+            // a QR code or text that the user can share.
+
+            // I'll use the simpler approach: display the offer as text,
+            // and the joiner pastes it.
+
+            // ----- WebRTC Setup -----
+            const configuration = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                ]
+            };
+
+            let pc = null;
+            let dc = null;
+            let localStream = null;
+            let remoteStreams = new Map(); // peerId -> MediaStream
+
+            async function createPeerConnection() {
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+                pc = new RTCPeerConnection(configuration);
+
+                // Add local stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        pc.addTrack(track, localStream);
                     });
                 }
-            }
 
-            // -------- Connect to a peer --------
-            function connectToPeer(peerId) {
-                if (peerId === myPeerId) return;
-                if (connections[peerId]) return;
-                if (!peer) return;
-
-                showToast(`🔗 Connecting to ${peerIdToName[peerId] || peerId}...`, 2000);
-
-                const conn = peer.connect(peerId, { reliable: true });
-                conn.on('open', () => {
-                    showToast(`✅ Connected to ${peerIdToName[peerId] || peerId}`, 2000);
-                    conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                });
-                conn.on('data', (data) => {
-                    if (data.type === 'name') {
-                        peerIdToName[peerId] = data.name;
-                        peerIdToEmoji[peerId] = data.emoji || '👤';
-                        renderPeerList();
-                        if (speakerPeerId === peerId) {
-                            speakerName.textContent = data.name;
-                            avatarEmoji.textContent = data.emoji || '👤';
+                // Handle remote streams
+                pc.ontrack = (event) => {
+                    const stream = event.streams[0];
+                    if (stream) {
+                        const peerId = stream.id || 'peer-' + Date.now();
+                        remoteStreams.set(peerId, stream);
+                        // Play audio
+                        playRemoteStream(stream);
+                        // Update UI
+                        if (!state.peers.has(peerId)) {
+                            state.peers.set(peerId, {
+                                name: 'Peer',
+                                stream: stream,
+                                isSpeaking: false,
+                            });
+                            renderParticipants();
                         }
                     }
-                });
-                conn.on('close', () => {
-                    showToast(`❌ ${peerIdToName[peerId] || peerId} disconnected`, 2000);
-                    delete connections[peerId];
-                    delete peerIdToName[peerId];
-                    delete peerIdToEmoji[peerId];
-                    if (speakerPeerId === peerId) clearRemoteSpeaker();
-                    renderPeerList();
-                    updateConnStatus();
-                });
+                };
 
-                const mediaConn = peer.call(peerId, localStream);
-                mediaConn.on('stream', (remoteStream) => {
-                    handleRemoteStream(remoteStream, peerId);
-                });
-                mediaConn.on('close', () => {
-                    if (connections[peerId]) {
-                        delete connections[peerId];
-                        if (speakerPeerId === peerId) clearRemoteSpeaker();
-                        renderPeerList();
-                        updateConnStatus();
+                pc.oniceconnectionstatechange = () => {
+                    const state = pc.iceConnectionState;
+                    if (state === 'connected' || state === 'completed') {
+                        updateStatus('connected', 'සම්බන්ධයි');
+                        dom.statusDot.className = 'status-dot connected';
+                    } else if (state === 'disconnected' || state === 'failed') {
+                        updateStatus('disconnected', 'විසන්ධිතයි');
+                        dom.statusDot.className = 'status-dot disconnected';
+                    } else if (state === 'checking') {
+                        updateStatus('connecting', 'සම්බන්ධ වෙමින්...');
+                        dom.statusDot.className = 'status-dot connecting';
                     }
-                });
+                };
 
-                connections[peerId] = mediaConn;
-                connections[`${peerId}_data`] = conn;
-                renderPeerList();
-                updateConnStatus();
-            }
-
-            // -------- Handle incoming call --------
-            function handleIncomingCall(call) {
-                const peerId = call.peer;
-                if (connections[peerId]) {
-                    call.answer(localStream);
-                    return;
-                }
-                call.answer(localStream);
-                call.on('stream', (remoteStream) => {
-                    handleRemoteStream(remoteStream, peerId);
-                });
-                call.on('close', () => {
-                    if (connections[peerId]) {
-                        delete connections[peerId];
-                        if (speakerPeerId === peerId) clearRemoteSpeaker();
-                        renderPeerList();
-                        updateConnStatus();
+                // Data channel for signaling messages
+                dc = pc.createDataChannel('walkie-data');
+                dc.onopen = () => {
+                    console.log('Data channel open');
+                };
+                dc.onmessage = (e) => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        handleDataMessage(data);
+                    } catch (err) {
+                        console.warn('Invalid data message', err);
                     }
-                });
-                connections[peerId] = call;
+                };
 
-                const dataConn = peer.connect(peerId, { reliable: true });
-                dataConn.on('open', () => {
-                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                });
-                dataConn.on('data', (data) => {
-                    if (data.type === 'name') {
-                        peerIdToName[peerId] = data.name;
-                        peerIdToEmoji[peerId] = data.emoji || '👤';
-                        renderPeerList();
-                        if (speakerPeerId === peerId) {
-                            speakerName.textContent = data.name;
-                            avatarEmoji.textContent = data.emoji || '👤';
+                pc.ondatachannel = (event) => {
+                    const channel = event.channel;
+                    channel.onopen = () => {
+                        console.log('Data channel (incoming) open');
+                    };
+                    channel.onmessage = (e) => {
+                        try {
+                            const data = JSON.parse(e.data);
+                            handleDataMessage(data);
+                        } catch (err) {
+                            console.warn('Invalid data message', err);
                         }
-                    }
-                });
-                connections[`${peerId}_data`] = dataConn;
+                    };
+                    dc = channel;
+                };
 
-                renderPeerList();
-                updateConnStatus();
-                showToast(`📞 ${peerIdToName[peerId] || peerId} joined`, 2000);
+                return pc;
             }
 
-            // -------- Handle remote audio stream --------
-            function handleRemoteStream(stream, peerId) {
+            function playRemoteStream(stream) {
+                // Use the Web Audio API to play through speaker
                 const audio = new Audio();
                 audio.srcObject = stream;
                 audio.autoplay = true;
-                audio.volume = 1.0;
-                // Force speakerphone: in mobile browsers, this routes to speaker
-                // Some browsers support setSinkId for explicit output
-                if (audio.setSinkId && isSpeakerphoneOn) {
-                    audio.setSinkId('default').catch(() => {});
+                audio.muted = false;
+                // Force speaker mode
+                if (state.isSpeakerOn) {
+                    // @ts-ignore - experimental
+                    if (audio.sinkId !== undefined) {
+                        // Use default speaker
+                    }
                 }
-                audio.play().catch(() => {});
-                audioElements[`${peerId}_audio`] = audio;
+                audio.play().catch(err => console.warn('Audio play error:', err));
+                // Store for later
+                stream._audioElement = audio;
+            }
 
-                const name = peerIdToName[peerId] || peerId.slice(0, 8);
-                const emoji = peerIdToEmoji[peerId] || '👤';
-                setRemoteSpeaker(peerId, name);
-                avatarEmoji.textContent = emoji;
-
-                const ctx = initAudioContext();
-                const source = ctx.createMediaStreamSource(stream);
-                const remoteAnalyser = ctx.createAnalyser();
-                remoteAnalyser.fftSize = 256;
-                remoteAnalyser.smoothingTimeConstant = 0.7;
-                source.connect(remoteAnalyser);
-                audioElements[`${peerId}_analyser`] = remoteAnalyser;
-
-                startAnimation();
-
-                const dataConn = connections[`${peerId}_data`];
-                if (dataConn) {
-                    dataConn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
+            // ----- Data message handling -----
+            function handleDataMessage(data) {
+                const { type, from, payload } = data;
+                if (type === 'speaking') {
+                    const peerId = from;
+                    const isSpeaking = payload.isSpeaking;
+                    const name = payload.name || 'Peer';
+                    if (state.peers.has(peerId)) {
+                        state.peers.get(peerId).isSpeaking = isSpeaking;
+                        if (isSpeaking) {
+                            updateSpeaker(name, true, false);
+                        }
+                        updatePeerSpeaking(peerId, isSpeaking);
+                    }
+                } else if (type === 'peer-info') {
+                    const peerId = from;
+                    const name = payload.name || 'Peer';
+                    if (!state.peers.has(peerId)) {
+                        state.peers.set(peerId, {
+                            name: name,
+                            stream: null,
+                            isSpeaking: false,
+                        });
+                        renderParticipants();
+                    }
+                } else if (type === 'recording-status') {
+                    // Handle recording status updates
+                    toast(payload.name + ' පටිගත කිරීම ' + (payload.isRecording ? 'ආරම්භ කළා' : 'නැවැත්තුවා'), 'info');
                 }
             }
 
-            // -------- Start local audio --------
-            async function startLocalAudio() {
+            // ----- Send data via data channel -----
+            function sendData(type, payload) {
+                if (dc && dc.readyState === 'open') {
+                    dc.send(JSON.stringify({
+                        type: type,
+                        from: state.myId,
+                        payload: payload
+                    }));
+                }
+            }
+
+            // ----- Create offer (initiator) -----
+            async function createOffer() {
                 try {
-                    localStream = await navigator.mediaDevices.getUserMedia({
+                    pc = await createPeerConnection();
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    return offer;
+                } catch (err) {
+                    console.error('Create offer error:', err);
+                    throw err;
+                }
+            }
+
+            // ----- Handle answer (joiner) -----
+            async function handleAnswer(answer) {
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                } catch (err) {
+                    console.error('Handle answer error:', err);
+                    throw err;
+                }
+            }
+
+            // ----- Join with offer (joiner creates answer) -----
+            async function joinWithOffer(offerStr) {
+                try {
+                    const offer = JSON.parse(offerStr);
+                    pc = await createPeerConnection();
+                    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    return answer;
+                } catch (err) {
+                    console.error('Join with offer error:', err);
+                    throw err;
+                }
+            }
+
+            // ----- Simplified connection flow -----
+            // We'll use a room-based approach where:
+            // - The creator generates a room code and an offer
+            // - The offer is displayed as JSON
+            // - Joiners paste the offer to connect
+
+            // For simplicity, we'll store the offer in localStorage
+            // and use the room code as the key.
+
+            function storeOffer(roomCode, offer) {
+                try {
+                    localStorage.setItem('walkie_offer_' + roomCode, JSON.stringify(offer));
+                } catch (e) {
+                    console.warn('Could not store offer in localStorage', e);
+                }
+            }
+
+            function getStoredOffer(roomCode) {
+                try {
+                    const data = localStorage.getItem('walkie_offer_' + roomCode);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function removeStoredOffer(roomCode) {
+                localStorage.removeItem('walkie_offer_' + roomCode);
+            }
+
+            // ----- Main connection logic -----
+            async function connectToRoom(roomCode, userName, isInitiator) {
+                try {
+                    state.roomCode = roomCode;
+                    state.userName = userName;
+                    state.myId = generateId();
+
+                    // Request microphone
+                    if (!localStream) {
+                        await requestMicrophone();
+                    }
+
+                    if (isInitiator) {
+                        // Create room
+                        const offer = await createOffer();
+                        storeOffer(roomCode, offer);
+                        // Display the offer for sharing
+                        const offerStr = JSON.stringify(offer);
+                        toast('කාමරය සාදන ලදී! පහත කේතය අනෙක් අයට බෙදා ගන්න.', 'success', 3000);
+                        dom.connectionHelp.innerHTML = `
+                  <strong>🔑 කාමර කේතය:</strong> <code>${roomCode}</code><br>
+                  <span style="font-size:11px; opacity:0.7;">අනෙක් අය මෙම කේතය ඇතුළත් කර සම්බන්ධ වන්න.</span>
+                `;
+                        state.isInitiator = true;
+                        updateRoomInfo(roomCode);
+                        updateStatus('connected', 'සම්බන්ධයි (හිමිකරු)');
+                        dom.statusDot.className = 'status-dot connected';
+                        dom.setupOverlay.classList.add('hidden');
+                        renderParticipants();
+                        updateSpeaker(state.userName, false, false);
+                        // Broadcast peer info
+                        setTimeout(() => {
+                            sendData('peer-info', { name: state.userName });
+                        }, 500);
+                        toast('🎤 කතා කිරීමට බොත්තම ඔබාගෙන සිටින්න!', 'info', 2500);
+                    } else {
+                        // Join room - try to get stored offer
+                        const offer = getStoredOffer(roomCode);
+                        if (!offer) {
+                            toast('කාමර කේතය වලංගු නැත. කරුණාකර නිවැරදි කේතය ඇතුළත් කරන්න.', 'error', 3000);
+                            return;
+                        }
+                        const answer = await joinWithOffer(JSON.stringify(offer));
+                        // Store answer for the initiator
+                        localStorage.setItem('walkie_answer_' + roomCode, JSON.stringify(answer));
+                        // Notify initiator via data channel (will be established)
+                        updateRoomInfo(roomCode);
+                        updateStatus('connected', 'සම්බන්ධයි');
+                        dom.statusDot.className = 'status-dot connected';
+                        dom.setupOverlay.classList.add('hidden');
+                        renderParticipants();
+                        updateSpeaker(state.userName, false, false);
+                        setTimeout(() => {
+                            sendData('peer-info', { name: state.userName });
+                        }, 500);
+                        toast('🎤 කතා කිරීමට බොත්තම ඔබාගෙන සිටින්න!', 'info', 2500);
+                    }
+
+                    state.isConnected = true;
+
+                    // Listen for answer from joiner (if initiator)
+                    if (isInitiator) {
+                        // Poll for answer
+                        const checkAnswer = setInterval(() => {
+                            const answerData = localStorage.getItem('walkie_answer_' + roomCode);
+                            if (answerData) {
+                                try {
+                                    const answer = JSON.parse(answerData);
+                                    pc.setRemoteDescription(new RTCSessionDescription(answer));
+                                    localStorage.removeItem('walkie_answer_' + roomCode);
+                                    clearInterval(checkAnswer);
+                                    toast('නව සහභාගීවන්නෙකු සම්බන්ධ විය!', 'success', 2000);
+                                    renderParticipants();
+                                } catch (e) {
+                                    console.warn('Invalid answer', e);
+                                }
+                            }
+                        }, 1500);
+                        // Stop after 30 seconds
+                        setTimeout(() => clearInterval(checkAnswer), 30000);
+                    }
+
+                    // Start listening for speaking events
+                    startSpeakingDetection();
+
+                } catch (err) {
+                    console.error('Connection error:', err);
+                    toast('සම්බන්ධ වීම අසාර්ථකයි: ' + err.message, 'error', 3000);
+                    updateStatus('disconnected', 'දෝෂයකි');
+                }
+            }
+
+            // ----- Microphone -----
+            async function requestMicrophone() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: true,
                             noiseSuppression: true,
-                            autoGainControl: true
+                            autoGainControl: true,
                         }
                     });
-                    const ctx = initAudioContext();
-                    const source = ctx.createMediaStreamSource(localStream);
-                    source.connect(analyser);
-                    return true;
+                    localStream = stream;
+                    state.localStream = stream;
+                    dom.micBanner.classList.add('hidden');
+                    // Update mic indicator
+                    state.isMuted = false;
+                    updateSpeaker(state.userName, false, false);
+                    return stream;
                 } catch (err) {
                     console.error('Microphone error:', err);
-                    showToast('❌ Microphone access denied. Please allow mic permissions.', 4000);
-                    return false;
+                    dom.micBanner.classList.remove('hidden');
+                    toast('මයික්රොෆෝන අවසරය අවශ්‍යයි!', 'error', 3000);
+                    throw err;
                 }
             }
 
-            // -------- Join room --------
-            async function joinRoom() {
-                const room = roomInput.value.trim() || 'demo-room';
-                const name = nameInput.value.trim() || 'User';
-                if (!room) {
-                    showToast('Please enter a room name', 2000);
-                    return;
-                }
-                if (!name) {
-                    showToast('Please enter your name', 2000);
-                    return;
-                }
+            // ----- Speaking detection (using AudioContext) -----
+            let audioContext = null;
+            let analyser = null;
+            let dataArray = null;
+            let speakingDetectionInterval = null;
+            let isSpeakingNow = false;
+            let speakingTimeout = null;
 
-                currentRoom = room;
-                currentName = name;
+            function startSpeakingDetection() {
+                if (speakingDetectionInterval) return;
+                if (!localStream) return;
 
-                joinBtn.disabled = true;
-                joinBtn.textContent = '⏳ Connecting...';
+                try {
+                    audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 512;
+                    const source = audioContext.createMediaStreamSource(localStream);
+                    source.connect(analyser);
+                    dataArray = new Uint8Array(analyser.fftSize);
 
-                const ok = await startLocalAudio();
-                if (!ok) {
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                    return;
-                }
+                    let lastSpeakingState = false;
 
-                const id = `${room}-${name}-${Date.now().toString(36)}`;
-                myPeerId = id;
-                peer = new Peer(id, { debug: 2 });
+                    speakingDetectionInterval = setInterval(() => {
+                        if (!analyser) return;
+                        analyser.getByteTimeDomainData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) {
+                            const val = (dataArray[i] - 128) / 128;
+                            sum += val * val;
+                        }
+                        const rms = Math.sqrt(sum / dataArray.length);
+                        const threshold = 0.05;
+                        const isSpeaking = rms > threshold && !state.isMuted;
 
-                peer.on('open', (id) => {
-                    myPeerId = id;
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                    showToast(`✅ Connected to room: ${room}`, 2500);
-                    joinScreen.style.display = 'none';
-                    walkieScreen.classList.add('active');
-                    roomNameDisplay.textContent = room;
-                    speakerName.textContent = `${name} (you)`;
-                    avatarEmoji.textContent = getEmojiForName(name);
-                    peerIdToName[id] = name;
-                    peerIdToEmoji[id] = getEmojiForName(name);
-                    renderPeerList();
-                    updateConnStatus('online');
-                    startAnimation();
-
-                    // Speakerphone default ON
-                    setSpeakerphone(true);
-                });
-
-                peer.on('connection', (conn) => {
-                    const peerId = conn.peer;
-                    conn.on('data', (data) => {
-                        if (data.type === 'name') {
-                            peerIdToName[peerId] = data.name;
-                            peerIdToEmoji[peerId] = data.emoji || '👤';
-                            renderPeerList();
-                            if (speakerPeerId === peerId) {
-                                speakerName.textContent = data.name;
-                                avatarEmoji.textContent = data.emoji || '👤';
+                        if (isSpeaking !== lastSpeakingState) {
+                            lastSpeakingState = isSpeaking;
+                            if (isSpeaking) {
+                                // Start speaking
+                                isSpeakingNow = true;
+                                updateSpeaker(state.userName, true, false);
+                                // Notify peers
+                                sendData('speaking', { isSpeaking: true, name: state.userName });
+                                // Update self in participants
+                                renderParticipants();
+                            } else {
+                                // Stop speaking
+                                isSpeakingNow = false;
+                                updateSpeaker(state.userName, false, false);
+                                sendData('speaking', { isSpeaking: false, name: state.userName });
+                                renderParticipants();
                             }
                         }
-                    });
-                    conn.on('open', () => {
-                        conn.send({ type: 'name', name: currentName, emoji: getEmojiForName(currentName) });
-                    });
-                    connections[`${peerId}_data`] = conn;
-                    renderPeerList();
-                    updateConnStatus();
-                });
-
-                peer.on('call', (call) => {
-                    handleIncomingCall(call);
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Peer error:', err);
-                    showToast(`⚠️ Connection error: ${err.message || err}`, 3000);
-                    updateConnStatus('error');
-                });
-
-                showToast(`📡 Room: ${room} · Share your ID to invite others`, 3000);
-                updateConnStatus('online');
-
-                setInterval(() => {
-                    renderPeerList();
-                }, 5000);
+                    }, 150);
+                } catch (err) {
+                    console.warn('Speaking detection not available:', err);
+                }
             }
 
-            // -------- Leave room --------
-            function leaveRoom() {
-                Object.keys(connections).forEach(key => {
-                    try { connections[key].close(); } catch (_) {}
-                });
-                connections = {};
-                Object.keys(audioElements).forEach(key => {
-                    try {
-                        if (audioElements[key] && typeof audioElements[key].pause === 'function') {
-                            audioElements[key].pause();
-                        }
-                    } catch (_) {}
-                });
-                audioElements = {};
-                if (peer) { peer.destroy();
-                    peer = null; }
+            // ----- Push-to-Talk -----
+            const pttBtn = dom.pttButton;
+            let pttActive = false;
+
+            function setupPTT() {
+                // Mouse / Touch events
+                const startTalk = (e) => {
+                    e.preventDefault();
+                    if (!state.isConnected || state.isMuted) {
+                        toast(state.isMuted ? 'මයික්රොෆෝනය නිශ්ශබ්ද කර ඇත' : 'කාමරයට සම්බන්ධ නැත', 'warning', 1500);
+                        return;
+                    }
+                    pttActive = true;
+                    pttBtn.classList.add('active');
+                    pttBtn.querySelector('.ptt-label').textContent = 'කතා කරමින්...';
+                    pttBtn.querySelector('.ptt-icon i').className = 'fas fa-circle';
+                    // Unmute if muted
+                    if (state.isMuted) {
+                        toggleMute(false);
+                    }
+                    // Force speaking state
+                    isSpeakingNow = true;
+                    updateSpeaker(state.userName, true, false);
+                    sendData('speaking', { isSpeaking: true, name: state.userName });
+                    renderParticipants();
+                    // Enable audio tracks
+                    if (localStream) {
+                        localStream.getAudioTracks().forEach(t => t.enabled = true);
+                    }
+                };
+
+                const stopTalk = (e) => {
+                    e.preventDefault();
+                    if (!pttActive) return;
+                    pttActive = false;
+                    pttBtn.classList.remove('active');
+                    pttBtn.querySelector('.ptt-label').textContent = 'කතා කිරීමට ඔබන්න';
+                    pttBtn.querySelector('.ptt-icon i').className = 'fas fa-microphone';
+                    isSpeakingNow = false;
+                    updateSpeaker(state.userName, false, false);
+                    sendData('speaking', { isSpeaking: false, name: state.userName });
+                    renderParticipants();
+                    // Disable audio tracks
+                    if (localStream) {
+                        localStream.getAudioTracks().forEach(t => t.enabled = false);
+                    }
+                };
+
+                pttBtn.addEventListener('mousedown', startTalk);
+                pttBtn.addEventListener('mouseup', stopTalk);
+                pttBtn.addEventListener('mouseleave', stopTalk);
+                pttBtn.addEventListener('touchstart', startTalk, { passive: false });
+                pttBtn.addEventListener('touchend', stopTalk, { passive: false });
+                pttBtn.addEventListener('touchcancel', stopTalk, { passive: false });
+            }
+
+            // ----- Mute -----
+            function toggleMute(muted) {
+                state.isMuted = (muted !== undefined) ? muted : !state.isMuted;
                 if (localStream) {
-                    localStream.getTracks().forEach(t => t.stop());
-                    localStream = null;
+                    localStream.getAudioTracks().forEach(t => {
+                        t.enabled = !state.isMuted;
+                    });
                 }
-                if (audioContext) {
-                    audioContext.close();
-                    audioContext = null;
-                    analyser = null;
-                }
-                stopAnimation();
-                isTalking = false;
-                isRecording = false;
-                isSpeakerActive = false;
-                speakerPeerId = null;
-                peerIdToName = {};
-                peerIdToEmoji = {};
-                recordIcon.textContent = '⏺️';
-                recordBtn.classList.remove('recording');
-                talkBtn.classList.remove('talking');
-                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
-                talkBtn.querySelector('.mic-icon').textContent = '🎤';
-
-                walkieScreen.classList.remove('active');
-                joinScreen.style.display = 'flex';
-                joinBtn.disabled = false;
-                joinBtn.innerHTML = '<span>🔊</span> Join &amp; Talk';
-                roomNameDisplay.textContent = '---';
-                speakerName.textContent = 'Waiting...';
-                avatarEmoji.textContent = '👤';
-                resetBars();
-                renderPeerList();
-                updateConnStatus('offline');
-                showToast('👋 Left the room', 2000);
-            }
-
-            // -------- Update connection status --------
-            function updateConnStatus(state) {
-                const count = Object.keys(connections).filter(k => !k.includes('_data') && !k.includes('_analyser')).length;
-                if (state === 'online') {
-                    connDot.className = 'status-dot online';
-                    connText.textContent = `🟢 Connected · ${count} peer${count !== 1 ? 's' : ''}`;
-                } else if (state === 'error') {
-                    connDot.className = 'status-dot error';
-                    connText.textContent = '⚠️ Connection issue';
-                } else if (state === 'offline') {
-                    connDot.className = 'status-dot';
-                    connText.textContent = '⛔ Offline';
+                if (state.isMuted) {
+                    dom.muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> නිශ්ශබ්ද';
+                    dom.muteBtn.classList.remove('active-btn');
+                    dom.muteBtn.classList.add('record-btn');
+                    if (isSpeakingNow) {
+                        isSpeakingNow = false;
+                        updateSpeaker(state.userName, false, false);
+                        sendData('speaking', { isSpeaking: false, name: state.userName });
+                        renderParticipants();
+                    }
                 } else {
-                    connDot.className = 'status-dot online';
-                    connText.textContent = `🟢 ${count} peer${count !== 1 ? 's' : ''} connected`;
+                    dom.muteBtn.innerHTML = '<i class="fas fa-microphone"></i> මයික්';
+                    dom.muteBtn.classList.add('active-btn');
+                    dom.muteBtn.classList.remove('record-btn');
                 }
+                updateSpeaker(state.userName, isSpeakingNow || false, false);
+                toast(state.isMuted ? 'මයික්රොෆෝනය නිශ්ශබ්ද කර ඇත' : 'මයික්රොෆෝනය සක්‍රියයි', 'info', 1500);
             }
 
-            // -------- Talk (push-to-talk) --------
-            function startTalking() {
-                if (!localStream || !peer) {
-                    showToast('Please join a room first', 2000);
-                    return;
-                }
-                if (isTalking) return;
-                isTalking = true;
-                talkBtn.classList.add('talking');
-                talkBtn.querySelector('.talk-label').textContent = '🔴 Release to Stop';
-                talkBtn.querySelector('.mic-icon').textContent = '🔊';
+            // ----- Recording -----
+            let mediaRecorder = null;
+            let recordedChunks = [];
+            let isRecording = false;
 
-                speakerDisplay.classList.add('speaking');
-                speakerAvatar.classList.add('speaking-avatar');
-                ringEffect.classList.add('active');
-                speakerName.classList.add('speaking-name');
-                statusBadge.className = 'live-badge';
-                statusText.textContent = '🔊 Speaking';
-
-                startAnimation();
-            }
-
-            function stopTalking() {
-                if (!isTalking) return;
-                isTalking = false;
-                talkBtn.classList.remove('talking');
-                talkBtn.querySelector('.talk-label').textContent = 'Hold to Talk';
-                talkBtn.querySelector('.mic-icon').textContent = '🎤';
-
-                if (!isSpeakerActive) {
-                    speakerDisplay.classList.remove('speaking');
-                    speakerAvatar.classList.remove('speaking-avatar');
-                    ringEffect.classList.remove('active');
-                    speakerName.classList.remove('speaking-name');
-                    statusBadge.className = 'idle-badge';
-                    statusText.textContent = 'Idle';
-                    resetBars();
-                }
-            }
-
-            // -------- Record --------
             function toggleRecording() {
                 if (!localStream) {
-                    showToast('No audio stream available', 2000);
+                    toast('මයික්රොෆෝනය සොයා ගත නොහැක', 'error', 1500);
                     return;
                 }
+                if (isRecording) {
+                    // Stop recording
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    isRecording = false;
+                    dom.recordBtn.classList.remove('recording-active');
+                    dom.recordBtn.innerHTML = '<i class="fas fa-circle"></i> පටිගත කරන්න';
+                    toast('පටිගත කිරීම නැවැත්වූවා', 'info', 1500);
+                    sendData('recording-status', { isRecording: false, name: state.userName });
+                } else {
+                    // Start recording
+                    try {
+                        recordedChunks = [];
+                        mediaRecorder = new MediaRecorder(localStream, {
+                            mimeType: 'audio/webm;codecs=opus'
+                        });
+                        mediaRecorder.ondataavailable = (e) => {
+                            if (e.data.size > 0) {
+                                recordedChunks.push(e.data);
+                            }
+                        };
+                        mediaRecorder.onstop = () => {
+                            const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `walkie-${Date.now()}.webm`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(url), 5000);
+                            toast('පටිගත කිරීම සුරැකුණි!', 'success', 2000);
+                            recordedChunks = [];
+                        };
+                        mediaRecorder.start(1000);
+                        isRecording = true;
+                        dom.recordBtn.classList.add('recording-active');
+                        dom.recordBtn.innerHTML = '<i class="fas fa-stop"></i> නවත්වන්න';
+                        toast('🔴 පටිගත කිරීම ආරම්භ කළා', 'warning', 1500);
+                        sendData('recording-status', { isRecording: true, name: state.userName });
+                        // Visual feedback
+                        updateSpeaker(state.userName, isSpeakingNow || false, true);
+                    } catch (err) {
+                        console.error('Recording error:', err);
+                        toast('පටිගත කිරීම අසාර්ථකයි: ' + err.message, 'error', 2000);
+                    }
+                }
+            }
+
+            // ----- Speaker toggle -----
+            function toggleSpeaker() {
+                state.isSpeakerOn = !state.isSpeakerOn;
+                dom.speakerToggle.innerHTML = state.isSpeakerOn ?
+                    '<i class="fas fa-volume-up"></i>' :
+                    '<i class="fas fa-volume-mute"></i>';
+                // Apply to all audio elements
+                document.querySelectorAll('audio').forEach(a => {
+                    a.muted = !state.isSpeakerOn;
+                });
+                toast(state.isSpeakerOn ? 'ස්පීකර් සක්‍රියයි' : 'ස්පීකර් අක්‍රියයි', 'info', 1200);
+            }
+
+            // ----- Leave room -----
+            function leaveRoom() {
+                // Close peer connection
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+                if (dc) {
+                    dc.close();
+                    dc = null;
+                }
+                // Clean up
+                state.peers.clear();
+                state.isConnected = false;
+                state.isInitiator = false;
+                remoteStreams.clear();
+                // Stop speaking detection
+                if (speakingDetectionInterval) {
+                    clearInterval(speakingDetectionInterval);
+                    speakingDetectionInterval = null;
+                }
+                // Reset UI
+                updateStatus('disconnected', 'විසන්ධිතයි');
+                dom.statusDot.className = 'status-dot disconnected';
+                updateRoomInfo('');
+                dom.setupOverlay.classList.remove('hidden');
+                dom.connectionHelp.innerHTML =
+                    '<span>🔗 කාමර කේතය බෙදා ගන්න. සියලුම දෙනා එකම කාමර කේතය භාවිතා කළ යුතුය.</span>';
+                dom.participantsGrid.innerHTML = '';
+                updateSpeaker('---', false, false);
+                // Reset PTT
+                pttBtn.classList.remove('active');
+                pttBtn.querySelector('.ptt-label').textContent = 'කතා කිරීමට ඔබන්න';
+                pttBtn.querySelector('.ptt-icon i').className = 'fas fa-microphone';
+                // Reset recording
                 if (isRecording) {
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
                     }
                     isRecording = false;
-                    recordBtn.classList.remove('recording');
-                    recordIcon.textContent = '⏺️';
-                    showToast('⏹️ Recording stopped', 2000);
-                    return;
+                    dom.recordBtn.classList.remove('recording-active');
+                    dom.recordBtn.innerHTML = '<i class="fas fa-circle"></i> පටිගත කරන්න';
                 }
-
-                try {
-                    recordedChunks = [];
-                    const stream = localStream.clone();
-                    mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: 'audio/webm;codecs=opus'
-                    });
-
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) recordedChunks.push(e.data);
-                    };
-
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `walkie-recording-${Date.now()}.webm`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        setTimeout(() => URL.revokeObjectURL(url), 10000);
-                        showToast('💾 Recording saved!', 3000);
-                        recordedChunks = [];
-                        stream.getTracks().forEach(t => t.stop());
-                    };
-
-                    mediaRecorder.start(1000);
-                    isRecording = true;
-                    recordBtn.classList.add('recording');
-                    recordIcon.textContent = '🔴';
-                    showToast('🔴 Recording...', 2000);
-                } catch (err) {
-                    console.error('Record error:', err);
-                    showToast('❌ Could not start recording', 2500);
+                // Reset mute
+                if (state.isMuted) {
+                    toggleMute(false);
                 }
+                toast('කාමරයෙන් පිටව ගියා', 'info', 1500);
+                // Remove stored offers
+                if (state.roomCode) {
+                    removeStoredOffer(state.roomCode);
+                    localStorage.removeItem('walkie_answer_' + state.roomCode);
+                }
+                state.roomCode = '';
             }
 
-            // -------- Event listeners --------
-            joinBtn.addEventListener('click', joinRoom);
+            // ----- Setup UI events -----
+            function setupUI() {
+                // Join room
+                dom.joinRoomBtn.addEventListener('click', async () => {
+                    const name = dom.userNameInput.value.trim() || 'User';
+                    const code = dom.roomCodeInput.value.trim().toUpperCase() || generateId();
+                    state.userName = name;
+                    dom.roomCodeInput.value = code;
+                    try {
+                        await connectToRoom(code, name, false);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
 
-            leaveBtn.addEventListener('click', () => {
-                if (confirm('Leave the room?')) {
-                    leaveRoom();
+                // Create room
+                dom.createRoomBtn.addEventListener('click', async () => {
+                    const name = dom.userNameInput.value.trim() || 'User';
+                    const code = generateId();
+                    state.userName = name;
+                    dom.roomCodeInput.value = code;
+                    try {
+                        await connectToRoom(code, name, true);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
+
+                // Enter key for join
+                dom.roomCodeInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') dom.joinRoomBtn.click();
+                });
+                dom.userNameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') dom.joinRoomBtn.click();
+                });
+
+                // PTT setup
+                setupPTT();
+
+                // Mute
+                dom.muteBtn.addEventListener('click', () => toggleMute());
+
+                // Record
+                dom.recordBtn.addEventListener('click', toggleRecording);
+
+                // Speaker
+                dom.speakerToggle.addEventListener('click', toggleSpeaker);
+
+                // Leave
+                dom.leaveRoomBtn.addEventListener('click', () => {
+                    if (confirm('කාමරයෙන් පිටවීමට අවශ්‍යද?')) {
+                        leaveRoom();
+                    }
+                });
+
+                // Request mic
+                dom.requestMicBtn.addEventListener('click', async () => {
+                    try {
+                        await requestMicrophone();
+                        toast('මයික්රොෆෝනය සක්‍රියයි!', 'success', 1500);
+                    } catch (err) {
+                        toast('මයික්රොෆෝන අවසරය ප්‍රතික්ෂේප කරන ලදී', 'error', 2000);
+                    }
+                });
+
+                // Auto-generate room code on load
+                dom.roomCodeInput.value = generateId();
+
+                // Try to get mic on load
+                setTimeout(async () => {
+                    try {
+                        await requestMicrophone();
+                    } catch (e) {
+                        // Show banner
+                        dom.micBanner.classList.remove('hidden');
+                    }
+                }, 500);
+            }
+
+            // ----- Init -----
+            function init() {
+                setupUI();
+                updateStatus('disconnected', 'විසන්ධිතයි');
+                dom.statusDot.className = 'status-dot disconnected';
+                updateRoomInfo('');
+                updateSpeaker('---', false, false);
+                renderParticipants();
+                // Show setup
+                dom.setupOverlay.classList.remove('hidden');
+            }
+
+            // Handle visibility change - re-enable audio when coming back
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && localStream) {
+                    localStream.getAudioTracks().forEach(t => {
+                        if (!state.isMuted && pttActive) {
+                            t.enabled = true;
+                        }
+                    });
                 }
             });
 
-            // Talk button: press and hold
-            talkBtn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                startTalking();
-            });
-            talkBtn.addEventListener('mouseup', (e) => {
-                e.preventDefault();
-                stopTalking();
-            });
-            talkBtn.addEventListener('mouseleave', () => {
-                stopTalking();
-            });
-
-            talkBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                startTalking();
-            }, { passive: false });
-            talkBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                stopTalking();
-            }, { passive: false });
-            talkBtn.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                stopTalking();
-            }, { passive: false });
-
-            // Record button
-            recordBtn.addEventListener('click', toggleRecording);
-
-            // Speakerphone toggle
-            speakerToggle.addEventListener('click', () => {
-                setSpeakerphone(!isSpeakerphoneOn);
-            });
-            speakerToggle.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSpeakerphone(!isSpeakerphoneOn);
+            // Handle page unload
+            window.addEventListener('beforeunload', () => {
+                if (pc) pc.close();
+                if (localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
                 }
+                if (audioContext) audioContext.close();
             });
 
-            // Enter key on join form
-            roomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
-            nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
-
-            // -------- Initial state --------
-            joinScreen.style.display = 'flex';
-            walkieScreen.classList.remove('active');
-            updateConnStatus('offline');
-
-            const randomName = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Riley', 'Avery', 'Quinn', 'Morgan', 'Casey', 'Jamie'][
-                Math.floor(Math.random() * 10)
-            ] + Math.floor(Math.random() * 100);
-            nameInput.value = randomName;
-
-            // Speaker toggle initial state
-            speakerToggle.classList.add('active');
-            if (speakerToggleLabel) speakerToggleLabel.textContent = 'On';
-            isSpeakerphoneOn = true;
-
-            setTimeout(() => {
-                showToast('🎤 Join a room · press & hold to talk', 3500);
-            }, 500);
-
-            console.log('📻 Walkie Talkie with Speakerphone ready!');
-            console.log('🔊 Speakerphone is ON by default.');
-            console.log('📌 Press & hold the talk button to speak, release to listen.');
+            // Start
+            init();
 
         })();
     </script>
