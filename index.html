@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Walkie Talkie Multi</title>
+  <title>Walkie Talkie Pro</title>
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <!-- Google Fonts -->
@@ -361,7 +361,8 @@
       justify-content: center;
       gap: 16px;
     }
-    .ptt-button {
+    /* Mute toggle button (replaces PTT) */
+    .mute-button {
       flex: 1;
       max-width: 280px;
       padding: 18px 24px;
@@ -385,35 +386,15 @@
       overflow: hidden;
       min-height: 64px;
     }
-    .ptt-button:active {
-      transform: scale(0.96);
-      box-shadow: 0 2px 12px rgba(46,204,113,0.25);
+    .mute-button:active { transform: scale(0.96); }
+    .mute-button .btn-icon { font-size: 22px; }
+    .mute-button .btn-label { transition: var(--transition); }
+    .mute-button.muted {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      box-shadow: 0 4px 24px rgba(231,76,60,0.35);
     }
-    .ptt-button .ptt-icon { font-size: 22px; transition: var(--transition); }
-    .ptt-button .ptt-label { transition: var(--transition); }
-    .ptt-button.active {
-      background: linear-gradient(135deg, var(--yellow-primary), var(--yellow-dark));
-      box-shadow: 0 4px 32px rgba(241,196,15,0.45);
-      animation: ptt-pulse 0.6s ease-in-out infinite alternate;
-    }
-    @keyframes ptt-pulse {
-      0% { box-shadow: 0 4px 24px rgba(241,196,15,0.35); }
-      100% { box-shadow: 0 4px 48px rgba(241,196,15,0.60); }
-    }
-    .ptt-button .recording-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #e74c3c;
-      display: none;
-      animation: blink-dot 0.8s ease-in-out infinite;
-    }
-    .ptt-button.recording .recording-dot { display: inline-block; }
-    @keyframes blink-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.3; transform: scale(0.7); }
-    }
-    .ptt-button:disabled {
+    .mute-button.muted:active { box-shadow: 0 2px 12px rgba(231,76,60,0.25); }
+    .mute-button:disabled {
       opacity: 0.5;
       transform: none !important;
       cursor: not-allowed;
@@ -693,7 +674,7 @@
     @media (max-width: 380px) {
       .speaker-avatar { width: 64px; height: 64px; font-size: 28px; }
       .speaker-name { font-size: 15px; }
-      .ptt-button { font-size: 15px; padding: 14px 18px; min-height: 54px; }
+      .mute-button { font-size: 15px; padding: 14px 18px; min-height: 54px; }
       .participants-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px; }
       .participant-card .p-avatar { width: 36px; height: 36px; font-size: 14px; }
       .header h1 { font-size: 17px; }
@@ -745,7 +726,7 @@
     <div id="setupOverlay" class="setup-overlay">
       <div class="setup-logo"><i class="fas fa-walkie-talkie"></i></div>
       <h2>Walkie Talkie</h2>
-      <p class="subtitle">Real‑time voice over Wi‑Fi • Multi‑party</p>
+      <p class="subtitle">Real‑time group voice • full‑duplex</p>
 
       <div id="stepRole" style="width:100%; max-width:360px;">
         <div class="form-group">
@@ -761,7 +742,7 @@
         <button id="joinRoomBtn" class="btn-secondary"><i class="fas fa-sign-in-alt"></i> Join Room (Guest)</button>
         <div class="connection-help" style="margin-top:12px;">
           <i class="fas fa-info-circle"></i> Enter the same 12‑digit PIN to connect.<br />
-          <span style="font-size:11px; opacity:0.7;">All participants connect directly (mesh).</span>
+          <span style="font-size:11px; opacity:0.7;">All participants hear each other simultaneously.</span>
         </div>
       </div>
 
@@ -820,10 +801,9 @@
     <!-- ===== CONTROLS ===== -->
     <div class="controls-section">
       <div class="controls-row">
-        <button class="ptt-button" id="pttButton" disabled>
-          <span class="ptt-icon"><i class="fas fa-microphone"></i></span>
-          <span class="ptt-label">Press to Talk</span>
-          <span class="recording-dot"></span>
+        <button class="mute-button" id="muteToggleBtn" disabled>
+          <span class="btn-icon"><i class="fas fa-microphone"></i></span>
+          <span class="btn-label">Unmuted</span>
         </button>
       </div>
       <div class="controls-secondary">
@@ -860,7 +840,7 @@
         statusLabel: $('statusLabel'),
         waveBars: $('waveBars'),
         participantsGrid: $('participantsGrid'),
-        pttButton: $('pttButton'),
+        muteToggleBtn: $('muteToggleBtn'),
         recordBtn: $('recordBtn'),
         muteBtn: $('muteBtn'),
         speakerToggle: $('speakerToggle'),
@@ -875,29 +855,23 @@
         pin: '',
         isHost: false,
         isConnected: false,
-        isSpeaking: false,
-        isMuted: false,
+        isMuted: false,          // local mute state
         isRecording: false,
         isSpeakerOn: true,
         localStream: null,
         peer: null,
-        // For each connected peer (including self?), we store:
-        // calls: Map<peerId, MediaConnection>
-        // dataConns: Map<peerId, DataConnection>
-        // peers: Map<peerId, { name, stream, isSpeaking }>
         calls: new Map(),
         dataConns: new Map(),
-        peers: new Map(),
+        peers: new Map(),        // key: peerId, value: { name, stream, isSpeaking, _audioElement }
         myId: '',
-        hostId: '', // the PIN
-        pttPressed: false,
+        hostId: '',
         audioContext: null,
         analyser: null,
         dataArray: null,
         speakingInterval: null,
-        isSpeakingNow: false,
-        // Track which peer is currently speaking (to show in speaker section)
-        currentSpeakerId: null,
+        isSpeakingNow: false,    // local voice activity
+        currentSpeakerId: null,  // which peer is currently displayed in the speaker section
+        // We will rely on voice activity detection, not PTT.
       };
 
       // ----- Helpers -----
@@ -1014,7 +988,6 @@
           const p = state.peers.get(peerId);
           if (p) updateSpeaker(p.name, true, false, false);
         } else if (!isSpeaking && peerId === state.currentSpeakerId) {
-          // If speaker stopped, revert to self or first speaking peer
           findNewSpeaker();
         }
       }
@@ -1079,7 +1052,6 @@
       function handleDataMessage(data, peerId) {
         const { type, name, isSpeaking } = data;
         if (type === 'peer-info') {
-          // Update peer name
           if (state.peers.has(peerId)) {
             state.peers.get(peerId).name = name;
           } else {
@@ -1093,7 +1065,6 @@
               state.currentSpeakerId = peerId;
               updateSpeaker(name || state.peers.get(peerId).name, true, false, false);
             } else {
-              // Check if this was the current speaker
               if (state.currentSpeakerId === peerId) {
                 findNewSpeaker();
               }
@@ -1104,9 +1075,7 @@
         } else if (type === 'recording-status') {
           toast((name || 'Someone') + (isSpeaking ? ' started recording' : ' stopped recording'), 'info', 1500);
         } else if (type === 'peer-list') {
-          // Host sends list of existing guest IDs (excluding host)
           const list = data.list; // array of {id, name}
-          // For each, initiate call and data connection
           for (const item of list) {
             if (item.id === state.myId || item.id === state.hostId) continue;
             initiateConnectionToPeer(item.id, item.name);
@@ -1116,8 +1085,7 @@
 
       // ----- Initiate connection to a peer (guest to existing guest) -----
       function initiateConnectionToPeer(peerId, peerName) {
-        if (state.calls.has(peerId)) return; // already connected
-        // Call
+        if (state.calls.has(peerId)) return;
         const call = state.peer.call(peerId, state.localStream);
         state.calls.set(peerId, call);
         call.on('stream', (stream) => {
@@ -1126,18 +1094,16 @@
         call.on('close', () => {
           removePeer(peerId);
         });
-        // Data connection
         const conn = state.peer.connect(peerId);
         conn.on('open', () => {
           state.dataConns.set(peerId, conn);
           conn.send({ type: 'peer-info', name: state.userName });
-          // Also send our speaking status if we are speaking? not needed
+          // Also send our speaking status? Not needed initially.
         });
         conn.on('data', (data) => handleDataMessage(data, peerId));
         conn.on('close', () => {
           removePeer(peerId);
         });
-        // Add to peers map with name (if provided)
         if (!state.peers.has(peerId)) {
           state.peers.set(peerId, { name: peerName || 'Peer', stream: null, isSpeaking: false });
         } else {
@@ -1149,7 +1115,6 @@
       // ----- Handle incoming call -----
       function handleIncomingCall(call) {
         const peerId = call.peer;
-        // Accept with local stream
         call.answer(state.localStream);
         state.calls.set(peerId, call);
         call.on('stream', (stream) => {
@@ -1158,14 +1123,11 @@
         call.on('close', () => {
           removePeer(peerId);
         });
-        // We also need a data connection. The caller may initiate data connection, but we can also initiate from our side.
-        // We'll set up a data connection if not already.
         if (!state.dataConns.has(peerId)) {
           const conn = state.peer.connect(peerId);
           conn.on('open', () => {
             state.dataConns.set(peerId, conn);
             conn.send({ type: 'peer-info', name: state.userName });
-            // If host, send peer list
             if (state.isHost) {
               sendPeerList(conn);
             }
@@ -1173,9 +1135,6 @@
           conn.on('data', (data) => handleDataMessage(data, peerId));
           conn.on('close', () => removePeer(peerId));
         }
-        // If host, also send peer list to the new guest via existing data connection? We'll do it when data opens.
-        // But the data connection might open later. We'll send list when data connection opens.
-        // We'll also add to peers map
         if (!state.peers.has(peerId)) {
           state.peers.set(peerId, { name: 'Guest', stream: null, isSpeaking: false });
         }
@@ -1190,31 +1149,26 @@
         } else {
           state.peers.set(peerId, { name: 'Peer', stream: stream, isSpeaking: false });
         }
-        // Play audio
         const audio = new Audio();
         audio.srcObject = stream;
         audio.autoplay = true;
         audio.muted = false;
         if (!state.isSpeakerOn) audio.muted = true;
         audio.play().catch(err => console.warn('Audio play error:', err));
-        // Store audio element for later
         state.peers.get(peerId)._audioElement = audio;
         renderParticipants();
-        // If this is the first remote stream, mark connected
         if (!state.isConnected) {
           state.isConnected = true;
           updateStatus('connected', 'Connected');
           dom.statusDot.className = 'status-dot connected';
-          dom.pttButton.disabled = false;
-          toast('Connected! Press to talk.', 'success', 1500);
+          dom.muteToggleBtn.disabled = false;
+          toast('Connected! Talk freely.', 'success', 1500);
           startSpeakingDetection();
         }
-        // Update speaker if this peer is the current speaker
         if (state.currentSpeakerId === peerId) {
           const p = state.peers.get(peerId);
           if (p) updateSpeaker(p.name, p.isSpeaking || false, false, false);
         }
-        // If no current speaker, set to self
         if (!state.currentSpeakerId) {
           state.currentSpeakerId = state.myId;
           updateSpeaker(state.userName, state.isSpeakingNow || false, state.isRecording, true);
@@ -1223,15 +1177,12 @@
 
       // ----- Send peer list (host only) -----
       function sendPeerList(conn) {
-        // Build list of all peers (excluding the one we are sending to)
         const list = [];
         for (const [id, p] of state.peers) {
           if (id !== conn.peer && id !== state.myId) {
             list.push({ id, name: p.name });
           }
         }
-        // Also include host? The guest already has host connection, so exclude host.
-        // But include all guests.
         conn.send({ type: 'peer-list', list: list });
       }
 
@@ -1261,8 +1212,6 @@
           }
         }
         if (state.peers.size === 0 && state.isConnected) {
-          // No more peers? If we are guest and host disconnected, we might want to leave.
-          // If host, we can wait for new guests.
           if (!state.isHost) {
             toast('All peers disconnected', 'error', 2000);
             leaveRoom();
@@ -1295,23 +1244,22 @@
           dom.statusDot.className = 'status-dot connecting';
           updateRoomInfo(pin);
           dom.setupOverlay.classList.add('hidden');
-          // Add self to peers map
           state.peers.set(state.myId, { name: state.userName, stream: null, isSpeaking: false });
           renderParticipants();
           updateSpeaker(state.userName, false, false, true);
           state.currentSpeakerId = state.myId;
-          dom.pttButton.disabled = false; // Host can talk even without guests? We'll enable.
-          // Listen for incoming calls
+          dom.muteToggleBtn.disabled = false;
+          // Enable local audio
+          if (state.localStream) {
+            state.localStream.getAudioTracks().forEach(t => t.enabled = !state.isMuted);
+          }
+
           state.peer.on('call', handleIncomingCall);
-          // Listen for incoming data connections
           state.peer.on('connection', (conn) => {
             conn.on('open', () => {
               state.dataConns.set(conn.peer, conn);
               conn.send({ type: 'peer-info', name: state.userName });
-              // If this is a new guest, send peer list
               if (state.isHost) {
-                // But we need to wait until we have the guest's name? Not necessary.
-                // We'll send list when data opens.
                 sendPeerList(conn);
               }
             });
@@ -1357,21 +1305,17 @@
           updateSpeaker(state.userName, false, false, true);
           state.currentSpeakerId = state.myId;
 
-          // Listen for incoming calls (from other guests)
           state.peer.on('call', handleIncomingCall);
-          // Listen for incoming data connections
           state.peer.on('connection', (conn) => {
             conn.on('open', () => {
               state.dataConns.set(conn.peer, conn);
               conn.send({ type: 'peer-info', name: state.userName });
-              // If we are guest, we might receive peer list from host? But host already sends via separate data connection.
             });
             conn.on('data', (data) => handleDataMessage(data, conn.peer));
             conn.on('close', () => removePeer(conn.peer));
           });
 
-          // Initiate connection to host (call and data)
-          // Call host
+          // Connect to host
           const call = state.peer.call(pin, state.localStream);
           state.calls.set(pin, call);
           call.on('stream', (stream) => {
@@ -1380,23 +1324,19 @@
           call.on('close', () => {
             removePeer(pin);
           });
-          // Data connection to host
           const conn = state.peer.connect(pin);
           conn.on('open', () => {
             state.dataConns.set(pin, conn);
             conn.send({ type: 'peer-info', name: state.userName });
-            // Host will send peer list
           });
           conn.on('data', (data) => handleDataMessage(data, pin));
           conn.on('close', () => removePeer(pin));
 
-          // Add host to peers map initially
           if (!state.peers.has(pin)) {
             state.peers.set(pin, { name: 'Host', stream: null, isSpeaking: false });
           }
           renderParticipants();
 
-          // If host not reachable, timeout
           setTimeout(() => {
             if (!state.isConnected && !state.calls.has(pin)) {
               toast('Host not found. Please check the PIN.', 'error', 3000);
@@ -1428,6 +1368,8 @@
           dom.micBanner.classList.add('hidden');
           state.isMuted = false;
           updateSpeaker(state.userName, false, false, true);
+          // Enable audio tracks by default
+          stream.getAudioTracks().forEach(t => t.enabled = true);
           return stream;
         } catch (err) {
           console.error('Mic error:', err);
@@ -1437,7 +1379,7 @@
         }
       }
 
-      // ----- Speaking detection -----
+      // ----- Speaking detection (always on, no PTT) -----
       function startSpeakingDetection() {
         if (state.speakingInterval) return;
         if (!state.localStream) return;
@@ -1459,13 +1401,13 @@
             }
             const rms = Math.sqrt(sum / state.dataArray.length);
             const threshold = 0.05;
-            const speaking = rms > threshold && !state.isMuted && state.pttPressed;
+            // Speaking if RMS > threshold and not muted
+            const speaking = rms > threshold && !state.isMuted;
             if (speaking !== lastState) {
               lastState = speaking;
               if (speaking) {
                 state.isSpeakingNow = true;
                 updateSpeaker(state.userName, true, false, true);
-                // Broadcast to all peers
                 broadcastSpeaking(true);
                 renderParticipants();
               } else if (!speaking && state.isSpeakingNow) {
@@ -1482,7 +1424,6 @@
       }
 
       function broadcastSpeaking(isSpeaking) {
-        // Send to all data connections
         for (const [id, conn] of state.dataConns) {
           if (conn.open) {
             conn.send({ type: 'speaking', isSpeaking: isSpeaking, name: state.userName });
@@ -1490,69 +1431,30 @@
         }
       }
 
-      // ----- PTT -----
-      function setupPTT() {
-        const btn = dom.pttButton;
-        const startTalk = (e) => {
-          e.preventDefault();
-          if (!state.isConnected || state.isMuted) {
-            toast(state.isMuted ? 'Mic is muted' : 'Not connected', 'warning', 1200);
-            return;
-          }
-          state.pttPressed = true;
-          btn.classList.add('active');
-          btn.querySelector('.ptt-label').textContent = 'Speaking...';
-          btn.querySelector('.ptt-icon i').className = 'fas fa-circle';
-          if (state.isMuted) toggleMute(false);
-          state.isSpeakingNow = true;
-          updateSpeaker(state.userName, true, false, true);
-          broadcastSpeaking(true);
-          renderParticipants();
-          if (state.localStream) state.localStream.getAudioTracks().forEach(t => t.enabled = true);
-        };
-        const stopTalk = (e) => {
-          e.preventDefault();
-          if (!state.pttPressed) return;
-          state.pttPressed = false;
-          btn.classList.remove('active');
-          btn.querySelector('.ptt-label').textContent = 'Press to Talk';
-          btn.querySelector('.ptt-icon i').className = 'fas fa-microphone';
-          state.isSpeakingNow = false;
-          updateSpeaker(state.userName, false, false, true);
-          broadcastSpeaking(false);
-          renderParticipants();
-          if (state.localStream) state.localStream.getAudioTracks().forEach(t => t.enabled = false);
-        };
-        btn.addEventListener('mousedown', startTalk);
-        btn.addEventListener('mouseup', stopTalk);
-        btn.addEventListener('mouseleave', stopTalk);
-        btn.addEventListener('touchstart', startTalk, { passive: false });
-        btn.addEventListener('touchend', stopTalk, { passive: false });
-        btn.addEventListener('touchcancel', stopTalk, { passive: false });
-      }
-
-      // ----- Mute -----
-      function toggleMute(muted) {
-        state.isMuted = (muted !== undefined) ? muted : !state.isMuted;
+      // ----- Mute toggle (replaces PTT) -----
+      function toggleMute() {
+        state.isMuted = !state.isMuted;
         if (state.localStream) {
           state.localStream.getAudioTracks().forEach(t => t.enabled = !state.isMuted);
         }
+        const btn = dom.muteToggleBtn;
         if (state.isMuted) {
-          dom.muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Muted';
-          dom.muteBtn.classList.remove('active-btn');
-          dom.muteBtn.classList.add('record-btn');
-          if (state.isSpeakingNow) {
-            state.isSpeakingNow = false;
-            updateSpeaker(state.userName, false, false, true);
-            broadcastSpeaking(false);
-            renderParticipants();
-          }
+          btn.classList.add('muted');
+          btn.querySelector('.btn-icon').innerHTML = '<i class="fas fa-microphone-slash"></i>';
+          btn.querySelector('.btn-label').textContent = 'Muted';
         } else {
-          dom.muteBtn.innerHTML = '<i class="fas fa-microphone"></i> Mic';
-          dom.muteBtn.classList.add('active-btn');
-          dom.muteBtn.classList.remove('record-btn');
+          btn.classList.remove('muted');
+          btn.querySelector('.btn-icon').innerHTML = '<i class="fas fa-microphone"></i>';
+          btn.querySelector('.btn-label').textContent = 'Unmuted';
         }
-        updateSpeaker(state.userName, state.isSpeakingNow || false, false, true);
+        // Update mic indicator
+        updateSpeaker(state.userName, state.isSpeakingNow || false, state.isRecording, true);
+        // If we were speaking, stop broadcasting
+        if (state.isMuted && state.isSpeakingNow) {
+          state.isSpeakingNow = false;
+          broadcastSpeaking(false);
+          renderParticipants();
+        }
         toast(state.isMuted ? 'Mic muted' : 'Mic unmuted', 'info', 1200);
       }
 
@@ -1614,7 +1516,6 @@
       function toggleSpeaker() {
         state.isSpeakerOn = !state.isSpeakerOn;
         dom.speakerToggle.innerHTML = state.isSpeakerOn ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
-        // Apply to all audio elements
         for (const [id, p] of state.peers) {
           if (p._audioElement) {
             p._audioElement.muted = !state.isSpeakerOn;
@@ -1629,7 +1530,6 @@
           state.peer.destroy();
           state.peer = null;
         }
-        // Close all calls and data connections
         for (const [id, call] of state.calls) {
           call.close();
         }
@@ -1654,7 +1554,6 @@
           state.audioContext = null;
         }
         state.isConnected = false;
-        state.pttPressed = false;
         state.isSpeakingNow = false;
         updateStatus('disconnected', 'Disconnected');
         dom.statusDot.className = 'status-dot disconnected';
@@ -1662,10 +1561,10 @@
         dom.setupOverlay.classList.remove('hidden');
         dom.participantsGrid.innerHTML = '';
         updateSpeaker('---', false, false);
-        dom.pttButton.disabled = true;
-        dom.pttButton.classList.remove('active');
-        dom.pttButton.querySelector('.ptt-label').textContent = 'Press to Talk';
-        dom.pttButton.querySelector('.ptt-icon i').className = 'fas fa-microphone';
+        dom.muteToggleBtn.disabled = true;
+        dom.muteToggleBtn.classList.remove('muted');
+        dom.muteToggleBtn.querySelector('.btn-icon').innerHTML = '<i class="fas fa-microphone"></i>';
+        dom.muteToggleBtn.querySelector('.btn-label').textContent = 'Unmuted';
         dom.participantCount.textContent = '0';
         if (state.isRecording) {
           if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
@@ -1673,7 +1572,13 @@
           dom.recordBtn.classList.remove('recording-active');
           dom.recordBtn.innerHTML = '<i class="fas fa-circle"></i> Record';
         }
-        if (state.isMuted) toggleMute(false);
+        if (state.isMuted) {
+          // Reset mute state
+          state.isMuted = false;
+          if (state.localStream) {
+            state.localStream.getAudioTracks().forEach(t => t.enabled = true);
+          }
+        }
         toast('Left the room', 'info', 1500);
         state.pin = '';
         state.isHost = false;
@@ -1687,7 +1592,12 @@
         dom.createRoomBtn.addEventListener('click', startHost);
         dom.joinRoomBtn.addEventListener('click', startGuest);
 
-        dom.muteBtn.addEventListener('click', () => toggleMute());
+        // Mute toggle (main button)
+        dom.muteToggleBtn.addEventListener('click', toggleMute);
+
+        // Secondary mic button (synced)
+        dom.muteBtn.addEventListener('click', toggleMute);
+
         dom.recordBtn.addEventListener('click', toggleRecording);
         dom.speakerToggle.addEventListener('click', toggleSpeaker);
         dom.leaveRoomBtn.addEventListener('click', () => {
@@ -1704,8 +1614,6 @@
           e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
         });
 
-        setupPTT();
-
         setTimeout(async () => {
           try { await requestMicrophone(); } catch (e) { dom.micBanner.classList.remove('hidden'); }
         }, 500);
@@ -1719,7 +1627,7 @@
         updateRoomInfo('');
         updateSpeaker('---', false, false);
         dom.setupOverlay.classList.remove('hidden');
-        dom.pttButton.disabled = true;
+        dom.muteToggleBtn.disabled = true;
         renderParticipants();
         dom.participantCount.textContent = '0';
       }
@@ -1733,7 +1641,7 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && state.localStream && state.isConnected) {
           state.localStream.getAudioTracks().forEach(t => {
-            if (!state.isMuted && state.pttPressed) t.enabled = true;
+            if (!state.isMuted) t.enabled = true;
           });
         }
       });
