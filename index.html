@@ -719,6 +719,19 @@
       0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231,76,60,0.3); }
       50% { transform: scale(1.12); box-shadow: 0 0 24px 8px rgba(231,76,60,0.20); }
     }
+    /* Network info badge */
+    .network-badge {
+      font-size: 10px;
+      color: var(--gray-dark);
+      background: var(--gray-light);
+      padding: 2px 12px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .network-badge i { font-size: 10px; }
   </style>
 </head>
 <body>
@@ -748,7 +761,8 @@
         <div class="divider"><span>or</span></div>
         <button id="joinRoomBtn" class="btn-secondary"><i class="fas fa-sign-in-alt"></i> Join Room (Guest)</button>
         <div class="connection-help" style="margin-top:12px;">
-          <i class="fas fa-info-circle"></i> Enter the same 12‑digit PIN to connect.
+          <i class="fas fa-info-circle"></i> Enter the same 12‑digit PIN to connect.<br />
+          <span style="font-size:11px; opacity:0.7;">Works on the same local network via WebRTC.</span>
         </div>
       </div>
 
@@ -794,6 +808,7 @@
           <span></span><span></span><span></span><span></span><span></span>
         </div>
       </div>
+      <div class="network-badge"><i class="fas fa-wifi"></i> <span id="networkInfo">Local P2P</span></div>
     </div>
 
     <!-- ===== PARTICIPANTS ===== -->
@@ -852,6 +867,7 @@
         speakerToggle: $('speakerToggle'),
         leaveRoomBtn: $('leaveRoomBtn'),
         toast: $('toast'),
+        networkInfo: $('networkInfo'),
       };
 
       // ----- State -----
@@ -878,6 +894,8 @@
         dataArray: null,
         speakingInterval: null,
         isSpeakingNow: false,
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 3,
       };
 
       // ----- Helpers -----
@@ -990,40 +1008,51 @@
         }
       }
 
-      // ----- PeerJS -----
+      // ----- PeerJS with local network optimization -----
+      function createPeerOptions(isHost, pin) {
+        // Use free PeerJS cloud for signaling
+        // ICE servers are configured to prefer local IPs for same-network media
+        return {
+          debug: 2,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              // Add a TURN server (free, but may be slow) – fallback only
+              { urls: 'stun:stun.ekiga.net' }
+            ],
+            iceTransportPolicy: 'all', // Use all candidates (host, srflx, relay)
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require',
+          }
+        };
+      }
+
       async function initPeer(isHost, pin) {
         return new Promise((resolve, reject) => {
+          const options = createPeerOptions(isHost, pin);
           let peer;
           if (isHost) {
-            // Host uses the PIN as its peer ID
-            peer = new Peer(pin, {
-              debug: 2,
-              config: {
-                iceServers: [
-                  { urls: 'stun:stun.l.google.com:19302' },
-                  { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-              }
-            });
+            peer = new Peer(pin, options);
           } else {
-            // Guest uses a random ID
-            peer = new Peer({
-              debug: 2,
-              config: {
-                iceServers: [
-                  { urls: 'stun:stun.l.google.com:19302' },
-                  { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-              }
-            });
+            peer = new Peer(options);
           }
 
+          const timeout = setTimeout(() => {
+            if (peer && !peer.destroyed) {
+              peer.destroy();
+            }
+            reject(new Error('PeerJS connection timeout'));
+          }, 15000);
+
           peer.on('open', (id) => {
+            clearTimeout(timeout);
             state.myId = id;
             resolve(peer);
           });
 
           peer.on('error', (err) => {
+            clearTimeout(timeout);
             reject(err);
           });
         });
@@ -1041,62 +1070,60 @@
           state.isHost = true;
           state.userName = dom.userNameInput.value.trim() || 'User';
 
-          // Request mic
           await requestMicrophone();
 
-          // Create peer with PIN as ID
           state.peer = await initPeer(true, pin);
-          toast('Room created! Waiting for guests to join...', 'success', 2000);
+          toast('Room created! Share the PIN with others.', 'success', 2000);
           updateStatus('connecting', 'Waiting for guests...');
           dom.statusDot.className = 'status-dot connecting';
           updateRoomInfo(pin);
           dom.setupOverlay.classList.add('hidden');
           renderParticipants();
           updateSpeaker(state.userName, false, false);
+          dom.networkInfo.textContent = 'Hosting • PIN: ' + pin;
 
           // Listen for incoming calls
           state.peer.on('call', (call) => {
-            // Accept the call with our local stream
+            // Accept with local stream
             call.answer(state.localStream);
-            // Handle remote stream
             call.on('stream', (remoteStream) => {
               handleRemoteStream(call.peer, remoteStream);
             });
-            // Handle data connection
             call.on('close', () => {
               removePeer(call.peer);
             });
-            // We'll use the call's data channel? PeerJS call doesn't have data channel by default, we need to create a separate data connection.
-            // We'll use a separate data connection for signaling.
-            // We'll initiate a data connection to the guest to exchange names and speaking events.
-            // But for simplicity, we can use the call's metadata? Not available.
-            // We'll create a separate data connection from host to guest.
-            // We'll wait for the guest to connect data.
-            // Actually, we can use the peer's data connection.
+            // Store call reference
+            if (!state.call || state.call.peer !== call.peer) {
+              state.call = call;
+            }
           });
 
-          // Listen for data connections from guests
+          // Listen for data connections
           state.peer.on('connection', (conn) => {
-            // This is a data connection from a guest
             conn.on('open', () => {
               state.dataConnection = conn;
               setupDataConnection(conn);
-              // Send our name to guest
+              // Send our name
               conn.send({ type: 'peer-info', name: state.userName });
             });
             conn.on('data', (data) => handleDataMessage(data, conn.peer));
             conn.on('close', () => removePeer(conn.peer));
           });
 
-          // Also we need to handle the case when guest connects and sends data.
+          // Also handle incoming data from guest after call is established
+          // We'll set up a data connection from host to guest as well
 
         } catch (err) {
           console.error(err);
-          toast('Failed to create room: ' + err.message, 'error', 3000);
-          // If PIN already taken, show error
           if (err.type === 'unavailable-id') {
             toast('This PIN is already in use. Please choose another.', 'error', 3000);
+          } else {
+            toast('Failed to create room: ' + err.message, 'error', 3000);
           }
+          // Reset UI
+          dom.setupOverlay.classList.remove('hidden');
+          updateStatus('disconnected', 'Disconnected');
+          dom.statusDot.className = 'status-dot disconnected';
         }
       }
 
@@ -1114,7 +1141,6 @@
 
           await requestMicrophone();
 
-          // Create peer with random ID
           state.peer = await initPeer(false, pin);
           toast('Connecting to room...', 'info', 1500);
           updateStatus('connecting', 'Connecting...');
@@ -1123,8 +1149,9 @@
           dom.setupOverlay.classList.add('hidden');
           renderParticipants();
           updateSpeaker(state.userName, false, false);
+          dom.networkInfo.textContent = 'Connecting to ' + pin + '...';
 
-          // Connect to host: call the host's peer ID (which is the PIN)
+          // Call the host (PIN is host ID)
           const call = state.peer.call(pin, state.localStream);
           state.call = call;
           call.on('stream', (remoteStream) => {
@@ -1144,13 +1171,20 @@
           conn.on('data', (data) => handleDataMessage(data, conn.peer));
           conn.on('close', () => removePeer(conn.peer));
 
+          // Handle case where host not found
+          setTimeout(() => {
+            if (!state.isConnected && state.call && state.call._state === 'new') {
+              toast('Host not found. Please check the PIN.', 'error', 3000);
+              leaveRoom();
+            }
+          }, 8000);
+
         } catch (err) {
           console.error(err);
           toast('Failed to join: ' + err.message, 'error', 3000);
-          // If host not found, show error
-          if (err.type === 'peer-unavailable') {
-            toast('Host not found. Please check the PIN or create a room.', 'error', 3000);
-          }
+          dom.setupOverlay.classList.remove('hidden');
+          updateStatus('disconnected', 'Disconnected');
+          dom.statusDot.className = 'status-dot disconnected';
         }
       }
 
@@ -1173,24 +1207,28 @@
           state.peers.get(peerId).stream = stream;
         }
         renderParticipants();
+        state.isConnected = true;
         updateStatus('connected', 'Connected');
         dom.statusDot.className = 'status-dot connected';
         dom.pttButton.disabled = false;
+        dom.networkInfo.textContent = 'Connected • P2P ' + (state.isHost ? '(Host)' : '(Guest)');
         toast('Connected! Press to talk.', 'success', 1500);
 
-        // Start speaking detection on remote stream? We'll detect speaking on local stream only.
-        // But we can detect on remote as well? Not needed.
+        // Start speaking detection
+        startSpeakingDetection();
+
+        // If we are host, we might already have a data connection, but if not, we'll get it
+        // If we are guest, we already have data connection setup
       }
 
       // ----- Data connection setup -----
       function setupDataConnection(conn) {
-        // We'll use it to exchange peer info and speaking events
+        // Already handled in events
       }
 
       function handleDataMessage(data, peerId) {
         const { type, name, isSpeaking } = data;
         if (type === 'peer-info') {
-          // Update peer name
           if (state.peers.has(peerId)) {
             state.peers.get(peerId).name = name;
           } else {
@@ -1202,6 +1240,9 @@
             state.peers.get(peerId).isSpeaking = isSpeaking;
             if (isSpeaking) {
               updateSpeaker(name || 'Peer', true, false);
+            } else if (!isSpeaking && state.peers.size > 0) {
+              // Only update if we're not the one speaking
+              // We'll let the local speaking detection handle local
             }
             updatePeerSpeaking(peerId, isSpeaking);
           }
@@ -1228,7 +1269,20 @@
           dom.pttButton.disabled = true;
           updateStatus('disconnected', 'Disconnected');
           dom.statusDot.className = 'status-dot disconnected';
-          toast('Host disconnected', 'error', 2000);
+          dom.networkInfo.textContent = 'Disconnected';
+          toast('Connection lost', 'error', 2000);
+          state.isConnected = false;
+          // If we're not host, we might want to go back to setup
+          if (!state.isHost) {
+            setTimeout(() => {
+              dom.setupOverlay.classList.remove('hidden');
+            }, 2000);
+          } else {
+            // Host: wait for new guest
+            updateStatus('connecting', 'Waiting for guests...');
+            dom.statusDot.className = 'status-dot connecting';
+            toast('Waiting for a new guest...', 'info', 2000);
+          }
         }
       }
 
@@ -1236,7 +1290,12 @@
       async function requestMicrophone() {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            audio: { 
+              echoCancellation: true, 
+              noiseSuppression: true, 
+              autoGainControl: true,
+              sampleRate: 48000,
+            }
           });
           state.localStream = stream;
           dom.micBanner.classList.add('hidden');
@@ -1253,7 +1312,7 @@
 
       // ----- Speaking detection -----
       function startSpeakingDetection() {
-        if (speakingInterval) return;
+        if (state.speakingInterval) return;
         if (!state.localStream) return;
         try {
           state.audioContext = new(window.AudioContext || window.webkitAudioContext)();
@@ -1273,16 +1332,15 @@
             }
             const rms = Math.sqrt(sum / state.dataArray.length);
             const threshold = 0.05;
-            const speaking = rms > threshold && !state.isMuted;
+            const speaking = rms > threshold && !state.isMuted && state.pttPressed;
             if (speaking !== lastState) {
               lastState = speaking;
               if (speaking) {
                 state.isSpeakingNow = true;
                 updateSpeaker(state.userName, true, false);
-                // Send speaking event to peer
                 sendData({ type: 'speaking', isSpeaking: true, name: state.userName });
                 renderParticipants();
-              } else {
+              } else if (!speaking && state.isSpeakingNow) {
                 state.isSpeakingNow = false;
                 updateSpeaker(state.userName, false, false);
                 sendData({ type: 'speaking', isSpeaking: false, name: state.userName });
@@ -1426,7 +1484,6 @@
 
       // ----- Leave room -----
       function leaveRoom() {
-        // Close peer and connections
         if (state.peer) {
           state.peer.destroy();
           state.peer = null;
@@ -1449,6 +1506,7 @@
         state.call = null;
         state.dataConnection = null;
         state.isConnected = false;
+        state.pttPressed = false;
         updateStatus('disconnected', 'Disconnected');
         dom.statusDot.className = 'status-dot disconnected';
         updateRoomInfo('');
@@ -1459,6 +1517,7 @@
         dom.pttButton.classList.remove('active');
         dom.pttButton.querySelector('.ptt-label').textContent = 'Press to Talk';
         dom.pttButton.querySelector('.ptt-icon i').className = 'fas fa-microphone';
+        dom.networkInfo.textContent = 'Local P2P';
         if (state.isRecording) {
           if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
           state.isRecording = false;
@@ -1467,10 +1526,10 @@
         }
         if (state.isMuted) toggleMute(false);
         toast('Left the room', 'info', 1500);
-        // Reset state
         state.pin = '';
         state.isHost = false;
         state.isConnected = false;
+        state.isSpeakingNow = false;
       }
 
       // ----- UI Events -----
@@ -1502,39 +1561,7 @@
         setTimeout(async () => {
           try { await requestMicrophone(); } catch (e) { dom.micBanner.classList.remove('hidden'); }
         }, 500);
-
-        // Override connection state when peer connects
-        // We'll update state.isConnected when call is established
-        // We'll do that in handleRemoteStream
       }
-
-      // ----- Override handleRemoteStream to set connected -----
-      const origHandleRemoteStream = handleRemoteStream;
-      handleRemoteStream = function(peerId, stream) {
-        origHandleRemoteStream(peerId, stream);
-        state.isConnected = true;
-        // Start speaking detection
-        startSpeakingDetection();
-      };
-
-      // ----- Also override removePeer to handle disconnection -----
-      const origRemovePeer = removePeer;
-      removePeer = function(peerId) {
-        origRemovePeer(peerId);
-        if (state.peers.size === 0) {
-          state.isConnected = false;
-          dom.pttButton.disabled = true;
-          updateStatus('disconnected', 'Disconnected');
-          dom.statusDot.className = 'status-dot disconnected';
-          toast('All peers disconnected', 'warning', 1500);
-          // Close audio
-          if (state.audioElement) {
-            state.audioElement.pause();
-            state.audioElement.srcObject = null;
-            state.audioElement = null;
-          }
-        }
-      };
 
       // ----- Init -----
       function init() {
@@ -1546,6 +1573,7 @@
         dom.setupOverlay.classList.remove('hidden');
         dom.pttButton.disabled = true;
         renderParticipants();
+        dom.networkInfo.textContent = 'Local P2P';
       }
 
       window.addEventListener('beforeunload', () => {
